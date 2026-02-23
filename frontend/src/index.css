@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Nova Design System — CSS Custom Properties
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Light theme */
+    --nova-bg: #f8fafc;
+    --nova-surface: #ffffff;
+    --nova-surface-hover: #f1f5f9;
+    --nova-border: #e2e8f0;
+    --nova-text: #0f172a;
+    --nova-text-secondary: #475569;
+    --nova-text-muted: #94a3b8;
+  }
+
+  .dark {
+    --nova-bg: #0f172a;
+    --nova-surface: #1e293b;
+    --nova-surface-hover: #334155;
+    --nova-border: #334155;
+    --nova-text: #f1f5f9;
+    --nova-text-secondary: #cbd5e1;
+    --nova-text-muted: #64748b;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-nova-bg text-nova-text transition-colors duration-200;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-300 dark:bg-slate-600;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-500;
+  }
+}
+
+@layer components {
+  /* Card */
+  .nova-card {
+    @apply rounded-xl border border-nova-border bg-nova-surface p-6 shadow-sm
+           transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* Badge */
+  .nova-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .nova-badge-primary {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300;
+  }
+
+  .nova-badge-success {
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300;
+  }
+
+  .nova-badge-warning {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300;
+  }
+
+  .nova-badge-danger {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300;
+  }
+
+  /* KP level badges */
+  .nova-kp-bronze { @apply bg-amber-100 text-amber-900; }
+  .nova-kp-silver { @apply bg-gray-200 text-gray-800; }
+  .nova-kp-gold { @apply bg-yellow-100 text-yellow-900; }
+  .nova-kp-platinum { @apply bg-slate-200 text-slate-900; }
+  .nova-kp-diamond { @apply bg-cyan-100 text-cyan-900; }
+
+  /* Shimmer loading effect */
+  .nova-shimmer {
+    @apply animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    background-size: 200% 100%;
+  }
+
+  /* Focus ring */
+  .nova-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           dark:focus:ring-offset-slate-900;
+  }
+
+  /* Input */
+  .nova-input {
+    @apply block w-full rounded-lg border border-nova-border bg-nova-surface px-4 py-2.5
+           text-sm text-nova-text placeholder:text-nova-text-muted
+           transition-colors duration-150
+           focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Prose for reader */
+  .nova-prose {
+    @apply prose prose-slate max-w-none dark:prose-invert
+           prose-headings:font-display
+           prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline
+           prose-code:rounded prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5
+           prose-code:text-sm dark:prose-code:bg-slate-800;
+  }
+}
+
+@layer utilities {
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Overscroll contain */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
+  /* Safe-area insets for mobile */
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}

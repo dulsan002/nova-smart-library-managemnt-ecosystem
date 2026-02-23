@@ -1,0 +1,76 @@
+# =============================================================================
+# Nova Project .gitignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+/media/
+/static/collected/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Docker
+*.pid
+
+# Node (Frontend)
+node_modules/
+frontend/dist/
+frontend/build/
+.next/
+
+# AI Models (large files)
+*.pkl
+*.h5
+*.pt
+*.pth
+models/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.env.production

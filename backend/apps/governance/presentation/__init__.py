@@ -1,0 +1,3 @@
+"""
+Nova — Governance GraphQL
+"""
