@@ -5,6 +5,7 @@ All read operations for the identity bounded context.
 """
 
 import graphene
+from graphene.types.generic import GenericScalar
 
 from apps.common.decorators import require_authentication, require_roles
 from apps.common.pagination import paginate_queryset, PageInfo
@@ -69,6 +70,11 @@ class IdentityQuery(graphene.ObjectType):
     available_modules = graphene.List(
         ModuleInfoType,
         description='Available permission modules and their labels.',
+    )
+
+    my_permissions = graphene.Field(
+        GenericScalar,
+        description="Current user's role permissions (module to actions map).",
     )
 
     # ---- Members ----
@@ -169,6 +175,17 @@ class IdentityQuery(graphene.ObjectType):
             ModuleInfoType(key=k, label=l)
             for k, l in RoleConfig.MODULE_CHOICES
         ]
+
+    @require_authentication
+    def resolve_my_permissions(self, info):
+        """Return the permission map for the current user's role."""
+        user = info.context.user
+        try:
+            config = RoleConfig.objects.get(role_key=user.role, is_active=True)
+            return config.permissions
+        except RoleConfig.DoesNotExist:
+            # Fallback: return empty permissions (deny all)
+            return {}
 
     # ---- Member Resolvers ----
 

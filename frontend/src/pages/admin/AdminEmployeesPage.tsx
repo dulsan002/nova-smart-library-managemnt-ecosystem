@@ -907,7 +907,7 @@ export default function AdminEmployeesPage() {
       {/* ══════════════════════════════════════
          EDIT EMPLOYEE MODAL
          ══════════════════════════════════════ */}
-      <Modal open={!!editEmpId} onClose={() => setEditEmpId(null)} title="Edit Employee" size="lg">
+      <Modal open={!!editEmpId} onClose={() => { setEditEmpId(null); setEditForm({ departmentId: '', jobTitle: '', employmentType: '', status: '', salary: '', reportsToId: '', terminationDate: '' }); }} title="Edit Employee" size="xl">
         <form onSubmit={handleEditSubmit}>
           <ModalBody>
             {editEmpLoading ? <div className="flex justify-center py-8"><Spinner /></div> : (
@@ -923,7 +923,7 @@ export default function AdminEmployeesPage() {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setEditEmpId(null)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setEditEmpId(null)}>Cancel</Button>
             <Button type="submit" isLoading={updatingEmp}>Save Changes</Button>
           </ModalFooter>
         </form>
@@ -932,7 +932,7 @@ export default function AdminEmployeesPage() {
       {/* ══════════════════════════════════════
          CREATE DEPARTMENT MODAL
          ══════════════════════════════════════ */}
-      <Modal open={showCreateDept} onClose={() => setShowCreateDept(false)} title="New Department">
+      <Modal open={showCreateDept} onClose={() => { setShowCreateDept(false); setDeptForm({ name: '', code: '', description: '' }); }} title="New Department" size="md">
         <form onSubmit={handleCreateDept}>
           <ModalBody>
             <div className="space-y-4">
@@ -942,7 +942,7 @@ export default function AdminEmployeesPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setShowCreateDept(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setShowCreateDept(false)}>Cancel</Button>
             <Button type="submit" isLoading={creatingDept}>Create</Button>
           </ModalFooter>
         </form>
@@ -951,7 +951,7 @@ export default function AdminEmployeesPage() {
       {/* ══════════════════════════════════════
          CREATE EMPLOYEE MODAL
          ══════════════════════════════════════ */}
-      <Modal open={showCreateEmp} onClose={() => setShowCreateEmp(false)} title="Add Employee" size="lg">
+      <Modal open={showCreateEmp} onClose={() => { setShowCreateEmp(false); setEmpForm({ userId: '', employeeId: '', departmentId: '', jobTitle: '', hireDate: '', employmentType: 'FULL_TIME', salary: '', reportsToId: '' }); }} title="Add Employee" size="xl">
         <form onSubmit={handleCreateEmp}>
           <ModalBody>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -966,7 +966,7 @@ export default function AdminEmployeesPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setShowCreateEmp(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setShowCreateEmp(false)}>Cancel</Button>
             <Button type="submit" isLoading={creatingEmp}>Create Employee</Button>
           </ModalFooter>
         </form>
@@ -975,7 +975,7 @@ export default function AdminEmployeesPage() {
       {/* ══════════════════════════════════════
          CREATE VACANCY MODAL
          ══════════════════════════════════════ */}
-      <Modal open={showCreateVacancy} onClose={() => setShowCreateVacancy(false)} title="Post Job Vacancy" size="lg">
+      <Modal open={showCreateVacancy} onClose={() => { setShowCreateVacancy(false); setVacForm({ title: '', departmentId: '', description: '', requirements: '', responsibilities: '', experienceLevel: 'MID', employmentType: 'FULL_TIME', positionsAvailable: '1', salaryRangeMin: '', salaryRangeMax: '', closingDate: '', location: '' }); }} title="Post Job Vacancy" size="xl">
         <form onSubmit={handleCreateVacancy}>
           <ModalBody>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -996,7 +996,7 @@ export default function AdminEmployeesPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setShowCreateVacancy(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setShowCreateVacancy(false)}>Cancel</Button>
             <Button type="submit" isLoading={creatingVac}>Post Vacancy</Button>
           </ModalFooter>
         </form>

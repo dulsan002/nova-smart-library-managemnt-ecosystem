@@ -59,6 +59,12 @@ const CATEGORY_META: Record<string, { label: string; icon: any; description: str
     description: 'Email notifications, due date reminders, and alerts',
     color: 'text-orange-500 bg-orange-50 dark:bg-orange-900/30',
   },
+  EMAIL: {
+    label: 'Email / SMTP',
+    icon: Cog6ToothIcon,
+    description: 'SMTP email server configuration (managed via Email / SMTP page)',
+    color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30',
+  },
 };
 
 interface SettingItem {
@@ -218,7 +224,7 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

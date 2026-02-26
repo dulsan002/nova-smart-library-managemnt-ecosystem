@@ -367,8 +367,8 @@ class RenewBorrowUseCase:
         except BorrowRecord.DoesNotExist:
             raise NotFoundError(resource_type='BorrowRecord', resource_id=str(borrow_id))
 
-        # Ownership check
-        if user and record.user_id != user.id:
+        # Ownership check — staff can renew on behalf of any user
+        if user and record.user_id != user.id and not getattr(user, 'is_staff_member', False):
             raise BorrowingError(
                 message='You can only renew your own borrows.',
                 code='NOT_OWNER',

@@ -26,7 +26,7 @@ export default function MyReservationsPage() {
     fetchPolicy: 'cache-and-network',
   });
 
-  const reservations = data?.myReservations ?? [];
+  const reservations = (data?.myReservations ?? []).filter(Boolean);
 
   const [cancelReservation, { loading: cancelling }] = useMutation(CANCEL_RESERVATION, {
     onCompleted: () => {

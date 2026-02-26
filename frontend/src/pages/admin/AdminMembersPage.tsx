@@ -235,7 +235,7 @@ export default function AdminMembersPage() {
   if (loading && edges.length === 0) return <LoadingOverlay />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -492,7 +492,7 @@ export default function AdminMembersPage() {
         open={showFormModal}
         onClose={closeForm}
         title={editingMember ? 'Edit Member' : 'Add New Member'}
-        size="lg"
+        size="xl"
       >
         <ModalBody>
           <div className="space-y-4">

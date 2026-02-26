@@ -198,7 +198,7 @@ export default function AdminDigitalPage() {
   if (loading && assets.length === 0) return <LoadingOverlay />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -536,7 +536,7 @@ export default function AdminDigitalPage() {
       {/* ─── Edit Modal ─── */}
       <Modal
         open={!!editTarget}
-        onClose={() => setEditTarget(null)}
+        onClose={() => { setEditTarget(null); setEditAssetType('EBOOK_PDF'); setEditFilePath(''); setEditFileSize(''); setEditMimeType(''); setEditTotalPages(''); setEditDuration(''); setEditNarrator(''); }}
         title="Edit Digital Asset"
         size="lg"
       >
@@ -649,7 +649,7 @@ export default function AdminDigitalPage() {
       </Modal>
 
       {/* ─── View Asset Modal ─── */}
-      <Modal open={!!viewAssetId} onClose={() => setViewAssetId(null)} title="Digital Asset Details" size="lg">
+      <Modal open={!!viewAssetId} onClose={() => setViewAssetId(null)} title="Digital Asset Details" size="xl">
         <ModalBody>
           {assetLoading ? (
             <div className="flex justify-center py-12"><LoadingOverlay /></div>

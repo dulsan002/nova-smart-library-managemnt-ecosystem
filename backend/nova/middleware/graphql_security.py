@@ -95,6 +95,11 @@ def _count_aliases(query: str) -> int:
     """Count the number of GraphQL alias patterns (``alias: field``)."""
     # Remove string literals first to avoid false matches
     cleaned = re.sub(r'"[^"]*"', "", query)
+    # Remove variable definitions ($varName: Type) to avoid false positives
+    cleaned = re.sub(r'\$\w+\s*:', "", cleaned)
+    # Remove field argument patterns (argName: $value or argName: value)
+    # by stripping content inside parentheses
+    cleaned = re.sub(r'\([^)]*\)', "", cleaned)
     # Match `word:` that is NOT part of a fragment definition or variable
     aliases = _ALIAS_PATTERN.findall(cleaned)
     # Filter out known non-alias patterns (fragment, on, query, mutation, subscription)

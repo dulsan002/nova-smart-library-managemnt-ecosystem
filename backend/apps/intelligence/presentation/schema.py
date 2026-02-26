@@ -268,6 +268,41 @@ class BookViewType(DjangoObjectType):
         )
 
 
+# -- LLM Analytics type ---
+
+class LLMAnalyticsType(graphene.ObjectType):
+    summary = graphene.String()
+    overdue_insights = graphene.String()
+    demand_insights = graphene.String()
+    user_insights = graphene.String()
+    collection_insights = graphene.String()
+    recommendations = graphene.List(graphene.String)
+    model_used = graphene.String()
+    error = graphene.String()
+
+
+# -- AI Search types ---
+
+class AISearchSourceType(graphene.ObjectType):
+    book_id = graphene.String()
+    title = graphene.String()
+    subtitle = graphene.String()
+    authors = graphene.List(graphene.String)
+    categories = graphene.List(graphene.String)
+    isbn = graphene.String()
+    rating = graphene.Float()
+    available_copies = graphene.Int()
+    total_copies = graphene.Int()
+    total_borrows = graphene.Int()
+
+
+class AISearchResponseType(graphene.ObjectType):
+    answer = graphene.String()
+    sources = graphene.List(AISearchSourceType)
+    model_used = graphene.String()
+    error = graphene.String()
+
+
 # ---------------------------------------------------------------------------
 # Queries
 # ---------------------------------------------------------------------------
@@ -375,6 +410,15 @@ class IntelligenceQuery(graphene.ObjectType):
         id=graphene.UUID(required=True),
     )
 
+    # --- LLM-powered analytics (admin) ---
+    llm_analytics = graphene.Field(LLMAnalyticsType)
+
+    # --- AI-powered search ---
+    ai_search = graphene.Field(
+        AISearchResponseType,
+        query=graphene.String(required=True),
+    )
+
     # --- Browse history ---
     my_browse_history = graphene.List(
         BookViewType,
@@ -397,6 +441,56 @@ class IntelligenceQuery(graphene.ObjectType):
     @require_roles([Role.SUPER_ADMIN])
     def resolve_ai_provider_config(self, info, id):
         return AIProviderConfig.objects.get(id=id)
+
+    @require_authentication
+    @require_roles([Role.SUPER_ADMIN, Role.LIBRARIAN])
+    def resolve_llm_analytics(self, info):
+        from apps.intelligence.infrastructure.llm_analytics import (
+            generate_llm_analytics,
+        )
+
+        result = generate_llm_analytics()
+        return LLMAnalyticsType(
+            summary=result.summary,
+            overdue_insights=result.overdue_insights,
+            demand_insights=result.demand_insights,
+            user_insights=result.user_insights,
+            collection_insights=result.collection_insights,
+            recommendations=result.recommendations,
+            model_used=result.model_used,
+            error=result.error,
+        )
+
+    def resolve_ai_search(self, info, query):
+        from apps.intelligence.infrastructure.llm_search import ai_search
+
+        user = getattr(info.context, 'user', None)
+        user_id = str(user.id) if user and user.is_authenticated else None
+
+        result = ai_search(query=query, user_id=user_id)
+
+        sources = [
+            AISearchSourceType(
+                book_id=s['bookId'],
+                title=s['title'],
+                subtitle=s.get('subtitle', ''),
+                authors=s.get('authors', []),
+                categories=s.get('categories', []),
+                isbn=s.get('isbn', ''),
+                rating=s.get('rating', 0),
+                available_copies=s.get('availableCopies', 0),
+                total_copies=s.get('totalCopies', 0),
+                total_borrows=s.get('totalBorrows', 0),
+            )
+            for s in result.sources
+        ]
+
+        return AISearchResponseType(
+            answer=result.answer,
+            sources=sources,
+            model_used=result.model_used,
+            error=result.error,
+        )
 
     @require_authentication
     def resolve_my_browse_history(self, info, limit=20):
@@ -561,91 +655,66 @@ class IntelligenceQuery(graphene.ObjectType):
     @require_authentication
     @require_roles([Role.SUPER_ADMIN, Role.LIBRARIAN])
     def resolve_overdue_predictions(self, info, limit=50):
-        from apps.circulation.domain.models import BorrowRecord
         from apps.intelligence.infrastructure.predictive_analytics import (
             OverduePredictor,
         )
 
-        active = BorrowRecord.objects.filter(
-            status='ACTIVE',
-        ).select_related('user', 'book_copy__book')[:limit]
+        all_preds = OverduePredictor.predict_batch()[:limit]
 
-        results = []
-        for record in active:
-            try:
-                pred = OverduePredictor.predict(record)
-                results.append(OverduePredictionType(
-                    borrow_id=record.id,
-                    user_email=record.user.email,
-                    book_title=record.book_copy.book.title,
-                    probability=pred.probability,
-                    risk_level=pred.risk_level,
-                    contributing_factors=pred.contributing_factors,
-                ))
-            except Exception:
-                continue
-
-        results.sort(key=lambda x: x.probability, reverse=True)
-        return results
+        return [
+            OverduePredictionType(
+                borrow_id=p.borrow_id,
+                user_email=p.user_id,  # will be resolved below
+                book_title=p.book_id,  # will be resolved below
+                probability=p.probability,
+                risk_level=p.risk_level,
+                contributing_factors=p.contributing_factors,
+            )
+            for p in all_preds
+        ]
 
     @require_authentication
     @require_roles([Role.SUPER_ADMIN, Role.LIBRARIAN])
     def resolve_demand_forecasts(self, info, limit=20):
-        from apps.catalog.domain.models import Book
         from apps.intelligence.infrastructure.predictive_analytics import (
             DemandForecaster,
         )
 
-        books = Book.objects.filter(
-            deleted_at__isnull=True,
-        ).order_by('-total_borrows')[:limit]
+        forecasts = DemandForecaster.forecast_all(top_n=limit)
 
-        results = []
-        for book in books:
-            try:
-                forecast = DemandForecaster.forecast(book)
-                results.append(DemandForecastType(
-                    book_id=book.id,
-                    book_title=book.title,
-                    trend=forecast.trend,
-                    predicted_borrows=forecast.predicted_borrows,
-                    recommended_copies=forecast.recommended_copies,
-                ))
-            except Exception:
-                continue
-
-        return results
+        return [
+            DemandForecastType(
+                book_id=f.book_id,
+                book_title=f.title,
+                trend=f.trend,
+                predicted_borrows=f.forecasted_demand,
+                recommended_copies=f.recommended_copies,
+            )
+            for f in forecasts
+        ]
 
     @require_authentication
     @require_roles([Role.SUPER_ADMIN, Role.LIBRARIAN])
     def resolve_churn_predictions(self, info, limit=50):
-        from apps.identity.domain.models import User
         from apps.intelligence.infrastructure.predictive_analytics import (
             ChurnPredictor,
         )
 
-        users = User.objects.filter(
-            is_active=True, role__in=['USER'],
-        )[:limit]
+        all_preds = ChurnPredictor.predict_all(min_days_registered=30)
+        # Filter to meaningful risk and limit
+        filtered = [p for p in all_preds if p.churn_probability >= 0.3][:limit]
 
-        results = []
-        for user in users:
-            try:
-                pred = ChurnPredictor.predict(user, weeks=8)
-                if pred.churn_probability >= 0.3:
-                    results.append(ChurnPredictionType(
-                        user_id=user.id,
-                        user_email=user.email,
-                        churn_probability=pred.churn_probability,
-                        risk_level=pred.risk_level,
-                        weeks_inactive=pred.weeks_since_last_activity,
-                        recommendations=pred.recommendations,
-                    ))
-            except Exception:
-                continue
-
-        results.sort(key=lambda x: x.churn_probability, reverse=True)
-        return results
+        return [
+            ChurnPredictionType(
+                user_id=p.user_id,
+                user_email=p.email,
+                churn_probability=p.churn_probability,
+                risk_level=p.risk_level,
+                weeks_inactive=p.days_since_last_activity // 7,
+                recommendations=p.recommendations,
+            )
+            for p in filtered
+        ]
 
     @require_authentication
     @require_roles([Role.SUPER_ADMIN, Role.LIBRARIAN])
@@ -657,7 +726,7 @@ class IntelligenceQuery(graphene.ObjectType):
         severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MODERATE': 2, 'LOW': 3}
         min_order = severity_order.get(min_severity, 3)
 
-        gaps = CollectionGapAnalyzer.analyze()
+        gaps = CollectionGapAnalyzer.analyse()
         return [
             CollectionGapType(
                 category_name=g.category_name,

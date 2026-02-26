@@ -100,7 +100,7 @@ export default function BookDetailPage() {
   });
   const authorBooks = (authorBooksData?.books?.edges ?? [])
     .map((e: any) => e.node)
-    .filter((b: any) => b?.id !== bookId);
+    .filter((b: any) => b && b.id !== bookId);
   useDocumentTitle(book?.title ?? 'Book Details');
 
   // Track book view for browse-based recommendations

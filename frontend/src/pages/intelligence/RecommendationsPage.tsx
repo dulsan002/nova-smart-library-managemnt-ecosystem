@@ -34,7 +34,7 @@ export default function RecommendationsPage() {
     fetchPolicy: 'cache-and-network',
   });
 
-  const recommendations = data?.myRecommendations ?? [];
+  const recommendations = (data?.myRecommendations ?? []).filter((r: any) => r?.book);
 
   const [generate, { loading: generating }] = useMutation(GENERATE_RECOMMENDATIONS, {
     onCompleted: () => {

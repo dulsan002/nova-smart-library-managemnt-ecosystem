@@ -490,3 +490,77 @@ class RefreshToken(UUIDModel):
         """
         # Revoke all tokens for this user as a security measure
         cls.revoke_all_for_user(token.user)
+
+
+class PasswordResetToken(UUIDModel):
+    """
+    Stores password-reset OTP codes.  Each code is single-use and expires
+    after a configurable period (default 10 minutes).
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='password_reset_tokens',
+    )
+    token_hash = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text='SHA-256 hash of the reset token.',
+    )
+    otp_code = models.CharField(
+        max_length=6,
+        default='',
+        blank=True,
+        help_text='6-digit OTP sent to the user via email.',
+    )
+    otp_verified = models.BooleanField(
+        default=False,
+        help_text='Whether the OTP has been verified.',
+    )
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'identity_password_reset_tokens'
+        verbose_name = 'Password Reset Token'
+        verbose_name_plural = 'Password Reset Tokens'
+        indexes = [
+            models.Index(fields=['token_hash'], name='idx_pw_reset_token_hash'),
+            models.Index(fields=['user', 'is_used'], name='idx_pw_reset_user'),
+        ]
+
+    def __str__(self):
+        status = 'used' if self.is_used else ('expired' if self.is_expired else 'active')
+        return f'Password reset for {self.user.email} ({status})'
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_used and not self.is_expired
+
+    def mark_otp_verified(self):
+        self.otp_verified = True
+        self.save(update_fields=['otp_verified', 'updated_at'])
+
+    def mark_used(self):
+        self.is_used = True
+        self.used_at = timezone.now()
+        self.save(update_fields=['is_used', 'used_at', 'updated_at'])
+
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        return hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+
+    @classmethod
+    def invalidate_existing(cls, user: User):
+        """Invalidate all unused tokens for a user."""
+        cls.objects.filter(user=user, is_used=False).update(
+            is_used=True, used_at=timezone.now(),
+        )

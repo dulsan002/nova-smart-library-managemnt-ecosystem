@@ -44,3 +44,13 @@ export const GET_AVAILABLE_MODULES = gql`
     }
   }
 `;
+
+/**
+ * Fetch the current authenticated user's role permissions.
+ * Returns a JSON map: { module_key: ["create","read","update","delete"], ... }
+ */
+export const MY_PERMISSIONS = gql`
+  query MyPermissions {
+    myPermissions
+  }
+`;

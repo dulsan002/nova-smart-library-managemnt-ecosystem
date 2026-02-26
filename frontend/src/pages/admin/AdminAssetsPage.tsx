@@ -189,7 +189,7 @@ export default function AdminAssetsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -377,9 +377,9 @@ export default function AdminAssetsPage() {
       )}
 
       {/* Create Asset Modal */}
-      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New Asset">
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New Asset" size="xl">
         <ModalBody>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Asset Tag *" value={form.assetTag} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} placeholder="AST-007" />
             <Input label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Asset name" />
             <Select label="Category *" value={form.categoryId} onChange={(value) => setForm({ ...form, categoryId: value })} options={[{ value: '', label: 'Select...' }, ...categories.map((c: any) => ({ value: c.id, label: c.name }))]} />
@@ -404,9 +404,9 @@ export default function AdminAssetsPage() {
       </Modal>
 
       {/* Log Maintenance Modal */}
-      <Modal open={showMaintenanceModal} onClose={() => setShowMaintenanceModal(false)} title="Log Maintenance">
+      <Modal open={showMaintenanceModal} onClose={() => setShowMaintenanceModal(false)} title="Log Maintenance" size="lg">
         <ModalBody>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Select label="Type *" value={maintForm.maintenanceType} onChange={(value) => setMaintForm({ ...maintForm, maintenanceType: value })} options={MAINT_TYPES} />
             <Input label="Date *" type="date" value={maintForm.performedDate} onChange={(e) => setMaintForm({ ...maintForm, performedDate: e.target.value })} />
             <Input label="Cost ($)" type="number" value={maintForm.cost} onChange={(e) => setMaintForm({ ...maintForm, cost: e.target.value })} />
@@ -425,7 +425,7 @@ export default function AdminAssetsPage() {
       </Modal>
 
       {/* Create Category Modal */}
-      <Modal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Create Asset Category">
+      <Modal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Create Asset Category" size="md">
         <ModalBody>
           <div className="space-y-4">
             <Input label="Name *" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} placeholder="e.g. Electronics" />

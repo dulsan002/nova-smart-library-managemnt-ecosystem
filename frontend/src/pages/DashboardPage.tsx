@@ -68,12 +68,12 @@ export default function DashboardPage() {
   const { data: libData } = useQuery(MY_LIBRARY);
   const { data: actData } = useQuery(MY_DAILY_ACTIVITY, { variables: { days: 7 } });
 
-  const borrows = borrowsData?.myBorrows ?? [];
-  const recommendations = recsData?.myRecommendations ?? [];
+  const borrows = (borrowsData?.myBorrows ?? []).filter(Boolean);
+  const recommendations = (recsData?.myRecommendations ?? []).filter((r: any) => r?.book);
   const engagement = engData?.myEngagement;
-  const trending = trendingData?.trendingBooks ?? [];
-  const library = libData?.myLibrary ?? [];
-  const weekActivity = actData?.myDailyActivity ?? [];
+  const trending = (trendingData?.trendingBooks ?? []).filter((t: any) => t?.book);
+  const library = (libData?.myLibrary ?? []).filter(Boolean);
+  const weekActivity = (actData?.myDailyActivity ?? []).filter(Boolean);
 
   // Continue reading/listening — in-progress items sorted by last accessed
   const continueItems = useMemo(() => {

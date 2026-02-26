@@ -314,6 +314,12 @@ class CirculationQuery(graphene.ObjectType):
         user_id=graphene.UUID(required=True),
         description='All reservations for a specific user (admin only).',
     )
+    all_fines = graphene.List(
+        FineType,
+        status=graphene.String(),
+        limit=graphene.Int(default_value=100),
+        description='All fines across all users (admin only).',
+    )
 
     @require_authentication
     def resolve_my_borrows(self, info, status=None, limit=20):
@@ -413,6 +419,16 @@ class CirculationQuery(graphene.ObjectType):
         return Reservation.objects.filter(
             user_id=user_id,
         ).select_related('book', 'assigned_copy').order_by('-reserved_at')
+
+    @require_authentication
+    @require_roles([Role.SUPER_ADMIN, Role.LIBRARIAN, Role.ASSISTANT])
+    def resolve_all_fines(self, info, status=None, limit=100):
+        qs = Fine.objects.all().select_related(
+            'user', 'borrow_record', 'borrow_record__book_copy__book',
+        ).order_by('-created_at')
+        if status:
+            qs = qs.filter(status=status)
+        return qs[:limit]
 
 
 # ---------------------------------------------------------------------------

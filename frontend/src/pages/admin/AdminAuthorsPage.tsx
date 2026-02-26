@@ -152,7 +152,7 @@ export default function AdminAuthorsPage() {
   if (loading && authors.length === 0) return <LoadingOverlay />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -370,9 +370,9 @@ export default function AdminAuthorsPage() {
       {/* ─── CREATE / EDIT MODAL ─── */}
       <Modal
         open={showFormModal}
-        onClose={() => { setShowFormModal(false); setEditingAuthor(null); }}
+        onClose={() => { setShowFormModal(false); setEditingAuthor(null); setForm(emptyForm); }}
         title={editingAuthor ? 'Edit Author' : 'Add Author'}
-        size="lg"
+        size="xl"
       >
         <form onSubmit={handleSubmit}>
           <ModalBody>
@@ -427,7 +427,7 @@ export default function AdminAuthorsPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => { setShowFormModal(false); setEditingAuthor(null); }}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => { setShowFormModal(false); setEditingAuthor(null); }}>Cancel</Button>
             <Button type="submit" isLoading={creating || updating}>{editingAuthor ? 'Save' : 'Create'}</Button>
           </ModalFooter>
         </form>

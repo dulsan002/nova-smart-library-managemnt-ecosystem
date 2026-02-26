@@ -46,6 +46,11 @@ class UpdateSystemSetting(graphene.Mutation):
     @audit_action(action='UPDATE', resource_type='SystemSetting')
     def mutate(self, info, key, value):
         setting = SystemSetting.objects.get(key=key)
+
+        # Guard: never allow saving the masked placeholder back to DB
+        if setting.is_sensitive and value in ('********', '••••••••', ''):
+            return setting  # Silently skip — the real value stays intact
+
         # Validate type
         if setting.value_type == 'INTEGER':
             int(value)  # Raises ValueError if invalid
@@ -76,6 +81,25 @@ class SyncDefaultSettings(graphene.Mutation):
         return SyncDefaultSettings(created_count=count)
 
 
+class SendTestEmail(graphene.Mutation):
+    """Send a test email to verify SMTP configuration works."""
+
+    class Arguments:
+        to_email = graphene.String(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    @require_authentication
+    @require_roles([Role.SUPER_ADMIN])
+    def mutate(self, info, to_email):
+        from apps.common.email_service import send_test_email
+        success, error_detail = send_test_email(to_email)
+        if success:
+            return SendTestEmail(success=True, message=f'Test email sent successfully to {to_email}! Check your inbox (and spam folder).')
+        return SendTestEmail(success=False, message=error_detail or 'Failed to send. Check SMTP settings and try again.')
+
+
 class SettingsQuery(graphene.ObjectType):
     system_settings = graphene.List(
         SystemSettingType,
@@ -103,3 +127,4 @@ class SettingsQuery(graphene.ObjectType):
 class SettingsMutation(graphene.ObjectType):
     update_system_setting = UpdateSystemSetting.Field()
     sync_default_settings = SyncDefaultSettings.Field()
+    send_test_email = SendTestEmail.Field()

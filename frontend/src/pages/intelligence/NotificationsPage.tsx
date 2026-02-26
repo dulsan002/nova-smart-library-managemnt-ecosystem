@@ -43,7 +43,7 @@ export default function NotificationsPage() {
     fetchPolicy: 'cache-and-network',
   });
 
-  const notifications = data?.myNotifications ?? [];
+  const notifications = (data?.myNotifications ?? []).filter(Boolean);
   const unread = notifications.filter((n: any) => !n.isRead);
 
   const [markRead] = useMutation(MARK_NOTIFICATION_READ, {

@@ -46,8 +46,8 @@ export default function MyBorrowsPage() {
 
   const { data: banData } = useQuery(MY_RESERVATION_BAN);
 
-  const borrows = borrowsData?.myBorrows ?? [];
-  const reservations = reservationsData?.myReservations ?? [];
+  const borrows = (borrowsData?.myBorrows ?? []).filter(Boolean);
+  const reservations = (reservationsData?.myReservations ?? []).filter(Boolean);
   const ban = banData?.myReservationBan;
 
   const active = borrows.filter(

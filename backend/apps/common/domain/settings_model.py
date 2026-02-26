@@ -25,6 +25,7 @@ class SystemSetting(TimeStampedModel):
         SECURITY = 'SECURITY', 'Security'
         GENERAL = 'GENERAL', 'General'
         NOTIFICATIONS = 'NOTIFICATIONS', 'Notifications'
+        EMAIL = 'EMAIL', 'Email / SMTP'
 
     class ValueType(models.TextChoices):
         STRING = 'STRING', 'Text'
@@ -131,10 +132,36 @@ class SystemSetting(TimeStampedModel):
              'Max Login Attempts', 'Failed login attempts before account lockout'),
             ('security.lockout_seconds', '600', 'INTEGER', 'SECURITY',
              'Account Lockout Duration (Seconds)', 'How long an account stays locked'),
+
+            # Email / SMTP
+            ('smtp.host', '', 'STRING', 'EMAIL',
+             'SMTP Server Host',
+             'The SMTP server address. Examples: smtp.gmail.com (Gmail), smtp.office365.com (Outlook/Microsoft 365), smtp-mail.outlook.com (Hotmail), smtp.zoho.com (Zoho Mail).'),
+            ('smtp.port', '587', 'INTEGER', 'EMAIL',
+             'SMTP Server Port',
+             'The port your SMTP server listens on. Use 587 for TLS (recommended), 465 for SSL, or 25 for unencrypted (not recommended).'),
+            ('smtp.username', '', 'STRING', 'EMAIL',
+             'SMTP Username',
+             'Usually your full email address, e.g. library@gmail.com. This is the account used to authenticate with the mail server.'),
+            ('smtp.password', '', 'STRING', 'EMAIL',
+             'SMTP Password / App Password',
+             'For Gmail: Go to myaccount.google.com → Security → 2-Step Verification → App passwords → Generate a 16-character app password. For Outlook: Use your account password or generate an app password under Security settings. Never use your main password if 2FA is enabled.',
+             True),
+            ('smtp.from_email', '', 'STRING', 'EMAIL',
+             'Sender Email Address',
+             'The "From" address recipients will see, e.g. noreply@yourlibrary.org. Must be an address your SMTP server allows you to send from.'),
+            ('smtp.from_name', 'Nova Smart Library', 'STRING', 'EMAIL',
+             'Sender Display Name',
+             'The friendly name shown in the "From" field, e.g. "Nova Smart Library". Recipients will see this next to the sender email.'),
+            ('smtp.use_tls', 'true', 'BOOLEAN', 'EMAIL',
+             'Use TLS Encryption',
+             'Enable TLS encryption for the SMTP connection. Recommended: Yes (port 587). Set to No only if your mail server does not support TLS.'),
         ]
 
         created = 0
-        for key, value, vtype, category, label, desc in defaults:
+        for item in defaults:
+            key, value, vtype, category, label, desc = item[:6]
+            sensitive = item[6] if len(item) > 6 else False
             _, was_created = cls.objects.get_or_create(
                 key=key,
                 defaults={
@@ -143,6 +170,7 @@ class SystemSetting(TimeStampedModel):
                     'category': category,
                     'label': label,
                     'description': desc,
+                    'is_sensitive': sensitive,
                 },
             )
             if was_created:

@@ -719,7 +719,7 @@ export default function AdminUsersPage() {
       </Modal>
 
       {/* ─── EDIT MODAL ──────────────────── */}
-      <Modal open={!!editUserId} onClose={() => setEditUserId(null)} title="Edit User" size="lg">
+      <Modal open={!!editUserId} onClose={() => { setEditUserId(null); setEditForm({ firstName: '', lastName: '', email: '', phoneNumber: '', dateOfBirth: '', institutionId: '', nicNumber: '', avatarUrl: '', role: '', isActive: true, isVerified: false }); }} title="Edit User" size="xl">
         <form onSubmit={handleEditSubmit}>
           <ModalBody>
             {editLoading ? <div className="flex justify-center py-8"><Spinner /></div> : (
@@ -747,14 +747,14 @@ export default function AdminUsersPage() {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setEditUserId(null)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setEditUserId(null)}>Cancel</Button>
             <Button type="submit" isLoading={updating}>Save Changes</Button>
           </ModalFooter>
         </form>
       </Modal>
 
       {/* ─── CREATE USER MODAL ─────────── */}
-      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New User" size="lg">
+      <Modal open={showCreateModal} onClose={() => { setShowCreateModal(false); setCreateForm({ firstName: '', lastName: '', email: '', password: '', phoneNumber: '', dateOfBirth: '', institutionId: '', nicNumber: '', role: 'USER' }); }} title="Create New User" size="xl">
         <form onSubmit={(e) => {
           e.preventDefault();
           if (!createForm.email || !createForm.firstName || !createForm.lastName || !createForm.password) {
@@ -798,7 +798,7 @@ export default function AdminUsersPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
             <Button type="submit" isLoading={creatingUser}>Create User</Button>
           </ModalFooter>
         </form>

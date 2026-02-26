@@ -371,9 +371,9 @@ export default function DigitalLibraryPage() {
     variables: { limit: 30 },
   });
 
-  const allAssets: any[] = allData?.allDigitalAssets ?? [];
-  const library: any[] = libData?.myLibrary ?? [];
-  const sessions: any[] = sessData?.myReadingSessions ?? [];
+  const allAssets: any[] = (allData?.allDigitalAssets ?? []).filter(Boolean);
+  const library: any[] = (libData?.myLibrary ?? []).filter(Boolean);
+  const sessions: any[] = (sessData?.myReadingSessions ?? []).filter(Boolean);
 
   /* Build a lookup map: asset ID -> UserLibrary entry (for progress/fav) */
   const libMap = useMemo(() => {

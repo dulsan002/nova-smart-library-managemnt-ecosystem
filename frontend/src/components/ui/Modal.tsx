@@ -13,7 +13,7 @@ import {
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
-type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 
 interface ModalProps {
   open: boolean;
@@ -29,9 +29,10 @@ interface ModalProps {
 const sizeStyles: Record<ModalSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-2xl',
-  full: 'max-w-4xl',
+  lg: 'max-w-xl',
+  xl: 'max-w-3xl',
+  '2xl': 'max-w-4xl',
+  full: 'max-w-5xl',
 };
 
 export function Modal({

@@ -119,7 +119,7 @@ export default function CatalogPage() {
 
   const booksData = data ?? previousData;
   const edges = booksData?.books?.edges ?? [];
-  const books = edges.map((e: any) => e.node);
+  const books = edges.map((e: any) => e.node).filter(Boolean);
   const pageInfo = booksData?.books?.pageInfo ?? {
     hasNextPage: false,
     hasPreviousPage: false,

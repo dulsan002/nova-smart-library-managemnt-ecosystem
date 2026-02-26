@@ -984,6 +984,182 @@ class DeleteMember(graphene.Mutation):
 
 
 # ---------------------------------------------------------------------------
+# Password Reset  (3-step OTP flow)
+# ---------------------------------------------------------------------------
+
+def _mask_email(email: str) -> str:
+    """Show first 2 chars of local part, mask rest. e.g. ad****@gmail.com"""
+    local, domain = email.split('@')
+    if len(local) <= 2:
+        masked = local + '***'
+    else:
+        masked = local[:2] + '*' * (len(local) - 2)
+    return f'{masked}@{domain}'
+
+
+class RequestPasswordReset(graphene.Mutation):
+    """
+    Step 1 — User submits their email.
+    If the account exists:
+      • generate a 6-digit OTP and a session token
+      • email the OTP via SMTP (if configured)
+      • return masked email hint + session token
+    """
+
+    class Arguments:
+        email = graphene.String(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+    masked_email = graphene.String(description='Masked version of the email for display.')
+    session_token = graphene.String(description='Session token to use in the next step.')
+
+    @staticmethod
+    def mutate(root, info, email):
+        import secrets
+        import random
+        from datetime import timedelta
+        from django.utils import timezone as tz
+        from apps.identity.domain.models import User, PasswordResetToken
+        from apps.common.email_service import send_password_reset_otp
+
+        email = email.strip().lower()
+
+        # Always respond with the same shape to prevent enumeration
+        not_found = RequestPasswordReset(
+            success=False,
+            message='No account found with that email address.',
+            masked_email=None,
+            session_token=None,
+        )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return not_found
+
+        # Invalidate previous unused tokens
+        PasswordResetToken.invalidate_existing(user)
+
+        # Generate OTP (6 digits) and session token
+        otp = f'{random.randint(0, 999999):06d}'
+        raw_token = secrets.token_urlsafe(48)
+
+        PasswordResetToken.objects.create(
+            user=user,
+            token_hash=PasswordResetToken.hash_token(raw_token),
+            otp_code=otp,
+            expires_at=tz.now() + timedelta(minutes=10),
+            ip_address=get_client_ip(info.context),
+        )
+
+        # Send OTP email (non-blocking — if SMTP fails, OTP is still logged)
+        email_sent = send_password_reset_otp(email, otp, user.first_name)
+        if not email_sent:
+            logger.warning('SMTP not configured or failed; OTP for %s: %s', email, otp)
+
+        logger.info('Password reset OTP requested for %s', email)
+
+        return RequestPasswordReset(
+            success=True,
+            message='A 6-digit verification code has been sent to your email.',
+            masked_email=_mask_email(email),
+            session_token=raw_token,
+        )
+
+
+class VerifyResetOtp(graphene.Mutation):
+    """
+    Step 2 — User enters the 6-digit OTP.
+    On success the session token is promoted to a verified state,
+    allowing the final password change.
+    """
+
+    class Arguments:
+        session_token = graphene.String(required=True)
+        otp = graphene.String(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    @staticmethod
+    def mutate(root, info, session_token, otp):
+        from apps.identity.domain.models import PasswordResetToken
+
+        token_hash = PasswordResetToken.hash_token(session_token)
+
+        try:
+            reset_token = PasswordResetToken.objects.select_related('user').get(
+                token_hash=token_hash,
+            )
+        except PasswordResetToken.DoesNotExist:
+            raise Exception('Invalid session. Please request a new reset code.')
+
+        if not reset_token.is_valid:
+            raise Exception('This code has expired. Please request a new one.')
+
+        if reset_token.otp_code != otp.strip():
+            raise Exception('Incorrect verification code. Please try again.')
+
+        reset_token.mark_otp_verified()
+
+        return VerifyResetOtp(
+            success=True,
+            message='Code verified. You can now set your new password.',
+        )
+
+
+class ConfirmPasswordReset(graphene.Mutation):
+    """
+    Step 3 — User sets a new password after OTP verification.
+    """
+
+    class Arguments:
+        session_token = graphene.String(required=True)
+        new_password = graphene.String(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    @staticmethod
+    def mutate(root, info, session_token, new_password):
+        from apps.identity.domain.models import PasswordResetToken
+        from apps.identity.domain.models import RefreshToken as RefreshTokenModel
+
+        token_hash = PasswordResetToken.hash_token(session_token)
+
+        try:
+            reset_token = PasswordResetToken.objects.select_related('user').get(
+                token_hash=token_hash,
+            )
+        except PasswordResetToken.DoesNotExist:
+            raise Exception('Invalid session. Please request a new reset code.')
+
+        if not reset_token.is_valid:
+            raise Exception('This session has expired. Please request a new reset code.')
+
+        if not reset_token.otp_verified:
+            raise Exception('OTP not verified. Please complete verification first.')
+
+        if len(new_password) < 8:
+            raise Exception('Password must be at least 8 characters long.')
+
+        user = reset_token.user
+        user.set_password(new_password)
+        user.save(update_fields=['password', 'updated_at'])
+
+        reset_token.mark_used()
+        RefreshTokenModel.revoke_all_for_user(user)
+
+        logger.info('Password reset confirmed for %s', user.email)
+
+        return ConfirmPasswordReset(
+            success=True,
+            message='Your password has been reset successfully. You can now sign in.',
+        )
+
+
+# ---------------------------------------------------------------------------
 # Mutation root
 # ---------------------------------------------------------------------------
 
@@ -997,6 +1173,11 @@ class IdentityMutation(graphene.ObjectType):
     update_profile = UpdateProfile.Field()
     change_password = ChangePassword.Field()
     submit_verification = SubmitVerification.Field()
+
+    # Password Reset
+    request_password_reset = RequestPasswordReset.Field()
+    verify_reset_otp = VerifyResetOtp.Field()
+    confirm_password_reset = ConfirmPasswordReset.Field()
 
     # Admin
     activate_user = ActivateUser.Field()

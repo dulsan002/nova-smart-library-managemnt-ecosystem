@@ -6,11 +6,14 @@ import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AdminRoute } from '@/components/auth/AdminRoute';
+import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { LoadingScreen } from '@/components/ui/Spinner';
 
 // --- Lazy-loaded pages ---
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const CatalogPage = lazy(() => import('@/pages/catalog/CatalogPage'));
 const BookDetailPage = lazy(() => import('@/pages/catalog/BookDetailPage'));
@@ -35,12 +38,12 @@ const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage'));
 const AdminBooksPage = lazy(() => import('@/pages/admin/AdminBooksPage'));
 const AdminCirculationPage = lazy(() => import('@/pages/admin/AdminCirculationPage'));
 const AdminAnalyticsPage = lazy(() => import('@/pages/admin/AdminAnalyticsPage'));
-const AdminAIModelsPage = lazy(() => import('@/pages/admin/AdminAIModelsPage'));
 const AdminAIConfigPage = lazy(() => import('@/pages/admin/AdminAIConfigPage'));
 const AdminAuditPage = lazy(() => import('@/pages/admin/AdminAuditPage'));
 const AdminAssetsPage = lazy(() => import('@/pages/admin/AdminAssetsPage'));
 const AdminEmployeesPage = lazy(() => import('@/pages/admin/AdminEmployeesPage'));
 const AdminSettingsPage = lazy(() => import('@/pages/admin/AdminSettingsPage'));
+const AdminSmtpPage = lazy(() => import('@/pages/admin/AdminSmtpPage'));
 const AdminDigitalPage = lazy(() => import('@/pages/admin/AdminDigitalPage'));
 const AdminAuthorsPage = lazy(() => import('@/pages/admin/AdminAuthorsPage'));
 const AdminRolesPage = lazy(() => import('@/pages/admin/AdminRolesPage'));
@@ -56,6 +59,8 @@ export function App() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ForgotPasswordPage />} />
         </Route>
 
         {/* Protected member routes */}
@@ -99,21 +104,21 @@ export function App() {
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/admin/books" element={<AdminBooksPage />} />
-            <Route path="/admin/authors" element={<AdminAuthorsPage />} />
-            <Route path="/admin/digital" element={<AdminDigitalPage />} />
-            <Route path="/admin/circulation" element={<AdminCirculationPage />} />
-            <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
-            <Route path="/admin/ai-models" element={<AdminAIModelsPage />} />
-            <Route path="/admin/ai-config" element={<AdminAIConfigPage />} />
-            <Route path="/admin/audit" element={<AdminAuditPage />} />
-            <Route path="/admin/assets" element={<AdminAssetsPage />} />
-            <Route path="/admin/employees" element={<AdminEmployeesPage />} />
-            <Route path="/admin/jobs" element={<AdminEmployeesPage />} />
-            <Route path="/admin/roles" element={<AdminRolesPage />} />
-            <Route path="/admin/members" element={<AdminMembersPage />} />
-            <Route path="/admin/settings" element={<AdminSettingsPage />} />
+            <Route path="/admin/users" element={<PermissionGuard module="users"><AdminUsersPage /></PermissionGuard>} />
+            <Route path="/admin/books" element={<PermissionGuard module="books"><AdminBooksPage /></PermissionGuard>} />
+            <Route path="/admin/authors" element={<PermissionGuard module="authors"><AdminAuthorsPage /></PermissionGuard>} />
+            <Route path="/admin/digital" element={<PermissionGuard module="digital_content"><AdminDigitalPage /></PermissionGuard>} />
+            <Route path="/admin/circulation" element={<PermissionGuard module="circulation"><AdminCirculationPage /></PermissionGuard>} />
+            <Route path="/admin/analytics" element={<PermissionGuard module="analytics"><AdminAnalyticsPage /></PermissionGuard>} />
+            <Route path="/admin/ai-config" element={<PermissionGuard module="ai"><AdminAIConfigPage /></PermissionGuard>} />
+            <Route path="/admin/audit" element={<PermissionGuard module="audit"><AdminAuditPage /></PermissionGuard>} />
+            <Route path="/admin/assets" element={<PermissionGuard module="assets"><AdminAssetsPage /></PermissionGuard>} />
+            <Route path="/admin/employees" element={<PermissionGuard module="employees"><AdminEmployeesPage /></PermissionGuard>} />
+            <Route path="/admin/jobs" element={<PermissionGuard module="employees"><AdminEmployeesPage /></PermissionGuard>} />
+            <Route path="/admin/roles" element={<PermissionGuard module="roles"><AdminRolesPage /></PermissionGuard>} />
+            <Route path="/admin/members" element={<PermissionGuard module="members"><AdminMembersPage /></PermissionGuard>} />
+            <Route path="/admin/settings" element={<PermissionGuard module="settings"><AdminSettingsPage /></PermissionGuard>} />
+            <Route path="/admin/smtp" element={<PermissionGuard module="settings"><AdminSmtpPage /></PermissionGuard>} />
           </Route>
         </Route>
 

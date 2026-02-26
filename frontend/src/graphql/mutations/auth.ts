@@ -120,3 +120,32 @@ export const REGISTER_WITH_NIC = gql`
     }
   }
 `;
+
+export const REQUEST_PASSWORD_RESET = gql`
+  mutation RequestPasswordReset($email: String!) {
+    requestPasswordReset(email: $email) {
+      success
+      message
+      maskedEmail
+      sessionToken
+    }
+  }
+`;
+
+export const VERIFY_RESET_OTP = gql`
+  mutation VerifyResetOtp($sessionToken: String!, $otp: String!) {
+    verifyResetOtp(sessionToken: $sessionToken, otp: $otp) {
+      success
+      message
+    }
+  }
+`;
+
+export const CONFIRM_PASSWORD_RESET = gql`
+  mutation ConfirmPasswordReset($sessionToken: String!, $newPassword: String!) {
+    confirmPasswordReset(sessionToken: $sessionToken, newPassword: $newPassword) {
+      success
+      message
+    }
+  }
+`;

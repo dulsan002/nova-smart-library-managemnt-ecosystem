@@ -23,3 +23,12 @@ export const SYNC_DEFAULT_SETTINGS = gql`
     }
   }
 `;
+
+export const SEND_TEST_EMAIL = gql`
+  mutation SendTestEmail($toEmail: String!) {
+    sendTestEmail(toEmail: $toEmail) {
+      success
+      message
+    }
+  }
+`;

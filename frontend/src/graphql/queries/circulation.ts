@@ -81,7 +81,9 @@ export const MY_FINES = gql`
       borrowRecord {
         id
         bookCopy {
+          id
           book {
+            id
             title
           }
         }
@@ -115,6 +117,9 @@ export const ALL_BORROWS = gql`
           returnedAt
           isOverdue
           daysOverdue
+          canRenew
+          renewalCount
+          maxRenewals
           user {
             id
             email
@@ -122,8 +127,10 @@ export const ALL_BORROWS = gql`
             lastName
           }
           bookCopy {
+            id
             barcode
             book {
+              id
               title
             }
           }
@@ -146,6 +153,9 @@ export const OVERDUE_BORROWS = gql`
       borrowedAt
       dueDate
       daysOverdue
+      renewalCount
+      maxRenewals
+      canRenew
       user {
         id
         email
@@ -153,9 +163,46 @@ export const OVERDUE_BORROWS = gql`
         lastName
       }
       bookCopy {
+        id
         barcode
         book {
+          id
           title
+        }
+      }
+    }
+  }
+`;
+
+export const ALL_FINES = gql`
+  query AllFines($status: String, $limit: Int) {
+    allFines(status: $status, limit: $limit) {
+      id
+      amount
+      paidAmount
+      outstanding
+      status
+      reason
+      description
+      issuedAt
+      createdAt
+      paidAt
+      waivedAt
+      user {
+        id
+        email
+        firstName
+        lastName
+      }
+      borrowRecord {
+        id
+        bookCopy {
+          id
+          barcode
+          book {
+            id
+            title
+          }
         }
       }
     }

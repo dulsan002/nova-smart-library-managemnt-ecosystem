@@ -138,6 +138,30 @@ export const AUTO_SUGGEST = gql`
   }
 `;
 
+// --- AI-powered Search ---
+
+export const AI_SEARCH = gql`
+  query AiSearch($query: String!) {
+    aiSearch(query: $query) {
+      answer
+      sources {
+        bookId
+        title
+        subtitle
+        authors
+        categories
+        isbn
+        rating
+        availableCopies
+        totalCopies
+        totalBorrows
+      }
+      modelUsed
+      error
+    }
+  }
+`;
+
 // --- Notifications ---
 
 export const MY_NOTIFICATIONS = gql`
@@ -263,6 +287,23 @@ export const COLLECTION_GAPS = gql`
       searchDemand
       waitlistCount
       suggestedAcquisitions
+    }
+  }
+`;
+
+// --- Admin: LLM Analytics ---
+
+export const LLM_ANALYTICS = gql`
+  query LLMAnalytics {
+    llmAnalytics {
+      summary
+      overdueInsights
+      demandInsights
+      userInsights
+      collectionInsights
+      recommendations
+      modelUsed
+      error
     }
   }
 `;

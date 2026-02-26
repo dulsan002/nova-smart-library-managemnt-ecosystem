@@ -180,15 +180,24 @@ export default function AdminBooksPage() {
   });
 
   const onBookSubmit = (vals: BookForm) => {
-    const input = {
-      ...vals,
-      pageCount: vals.pageCount ? Number(vals.pageCount) : undefined,
-      coverImageUrl: vals.coverImageUrl || undefined,
-      authorIds: selectedAuthorIds.length > 0 ? selectedAuthorIds : undefined,
-    };
+    const authorIds = selectedAuthorIds.length > 0 ? selectedAuthorIds : undefined;
     if (editingBook) {
+      // UpdateBookInput doesn't accept isbn13/isbn10 — strip them
+      const { isbn13, isbn10, ...updateFields } = vals;
+      const input = {
+        ...updateFields,
+        pageCount: updateFields.pageCount ? Number(updateFields.pageCount) : undefined,
+        coverImageUrl: updateFields.coverImageUrl || undefined,
+        authorIds,
+      };
       updateBook({ variables: { bookId: editingBook.id, input } });
     } else {
+      const input = {
+        ...vals,
+        pageCount: vals.pageCount ? Number(vals.pageCount) : undefined,
+        coverImageUrl: vals.coverImageUrl || undefined,
+        authorIds,
+      };
       createBook({ variables: { input } });
     }
   };
@@ -564,7 +573,7 @@ export default function AdminBooksPage() {
       </Modal>
 
       {/* Book Create / Edit Modal */}
-      <Modal open={showBookModal} onClose={() => { setShowBookModal(false); setEditingBook(null); }} title={editingBook ? 'Edit Book' : 'Add Book'} size="lg">
+      <Modal open={showBookModal} onClose={() => { setShowBookModal(false); setEditingBook(null); bookForm.reset(); setSelectedAuthorIds([]); }} title={editingBook ? 'Edit Book' : 'Add Book'} size="xl">
         <form onSubmit={bookForm.handleSubmit(onBookSubmit)}>
           <ModalBody>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -608,14 +617,14 @@ export default function AdminBooksPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => { setShowBookModal(false); setEditingBook(null); }}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => { setShowBookModal(false); setEditingBook(null); bookForm.reset(); setSelectedAuthorIds([]); }}>Cancel</Button>
             <Button type="submit" isLoading={creating || updating}>{editingBook ? 'Save' : 'Create'}</Button>
           </ModalFooter>
         </form>
       </Modal>
 
       {/* Add Copy Modal */}
-      <Modal open={!!showCopyModal} onClose={() => setShowCopyModal(null)} title="Add Book Copy">
+      <Modal open={!!showCopyModal} onClose={() => setShowCopyModal(null)} title="Add Book Copy" size="md">
         <form onSubmit={copyForm.handleSubmit(onCopySubmit)}>
           <ModalBody>
             <div className="space-y-4">
@@ -632,7 +641,7 @@ export default function AdminBooksPage() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={() => setShowCopyModal(null)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setShowCopyModal(null)}>Cancel</Button>
             <Button type="submit" isLoading={addingCopy}>Add Copy</Button>
           </ModalFooter>
         </form>

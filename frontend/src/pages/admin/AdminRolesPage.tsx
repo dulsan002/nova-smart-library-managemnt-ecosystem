@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, useApolloClient } from '@apollo/client';
 import toast from 'react-hot-toast';
 import {
   PlusCircleIcon,
@@ -21,7 +21,7 @@ import {
 
 } from '@heroicons/react/24/outline';
 import { useDocumentTitle } from '@/hooks';
-import { GET_ROLE_CONFIGS, GET_AVAILABLE_MODULES } from '@/graphql/queries/roles';
+import { GET_ROLE_CONFIGS, GET_AVAILABLE_MODULES, MY_PERMISSIONS } from '@/graphql/queries/roles';
 import { CREATE_ROLE_CONFIG, UPDATE_ROLE_CONFIG, DELETE_ROLE_CONFIG } from '@/graphql/mutations/roles';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -84,6 +84,7 @@ const emptyForm = {
 
 export default function AdminRolesPage() {
   useDocumentTitle('Roles & Permissions');
+  const client = useApolloClient();
 
   // Data
   const { data, loading, refetch } = useQuery(GET_ROLE_CONFIGS);
@@ -211,6 +212,8 @@ export default function AdminRolesPage() {
       }
       setShowFormModal(false);
       refetch();
+      // Refresh sidebar permissions in case the current user's role was updated
+      client.refetchQueries({ include: [MY_PERMISSIONS] });
     } catch (err) {
       toast.error(extractGqlError(err));
     }
@@ -235,7 +238,7 @@ export default function AdminRolesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -340,7 +343,7 @@ export default function AdminRolesPage() {
       {/* Create/Edit Modal with Permission Matrix */}
       <Modal
         open={showFormModal}
-        onClose={() => setShowFormModal(false)}
+        onClose={() => { setShowFormModal(false); setEditingRole(null); setForm(emptyForm); setMatrix({}); }}
         title={editingRole ? `Edit Role — ${editingRole.displayName}` : 'Create New Role'}
         size="xl"
       >
