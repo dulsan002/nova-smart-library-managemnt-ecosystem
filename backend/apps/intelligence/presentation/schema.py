@@ -578,13 +578,31 @@ class IntelligenceQuery(graphene.ObjectType):
             filters=filters,
         )
 
-        start = time.monotonic()
-        response = SearchEngine.search(request)
-        query_time = (time.monotonic() - start) * 1000
+        try:
+            start = time.monotonic()
+            response = SearchEngine.search(request)
+            query_time = (time.monotonic() - start) * 1000
+        except Exception as exc:
+            import logging
+            logging.getLogger('nova.intelligence.search').error(
+                'Search engine error: %s', exc, exc_info=True,
+            )
+            return SearchResponseType(
+                results=[], total=0, page=page, facets=[],
+                query_time_ms=0, corrected_query=None,
+            )
 
         # Fetch full book details for enrichment
         from apps.catalog.domain.models import Book
-        book_ids = [r.book_id for r in response.results]
+        import uuid as _uuid
+        book_ids = []
+        for r in response.results:
+            try:
+                _uuid.UUID(str(r.book_id))
+                book_ids.append(r.book_id)
+            except (ValueError, AttributeError):
+                continue
+
         books_qs = (
             Book.all_objects
             .filter(id__in=book_ids, deleted_at__isnull=True)
@@ -608,22 +626,37 @@ class IntelligenceQuery(graphene.ObjectType):
 
         facets = []
         for name, values in response.facets.items():
-            facets.append(SearchFacetType(
-                name=name,
-                values=[
-                    SearchFacetValueType(value=v, count=c)
-                    for v, c in values.items()
-                ],
-            ))
+            if isinstance(values, dict):
+                facets.append(SearchFacetType(
+                    name=name,
+                    values=[
+                        SearchFacetValueType(value=str(v), count=c)
+                        for v, c in values.items()
+                    ],
+                ))
+            elif isinstance(values, list):
+                facets.append(SearchFacetType(
+                    name=name,
+                    values=[
+                        SearchFacetValueType(
+                            value=item.get('name') or item.get('code') or str(item),
+                            count=item.get('count', 0),
+                        )
+                        for item in values
+                    ],
+                ))
 
         # Log the search
         if user_id:
-            SearchLog.objects.create(
-                user_id=user_id,
-                query_text=query,
-                filters_applied=filters,
-                results_count=response.total_count,
-            )
+            try:
+                SearchLog.objects.create(
+                    user_id=user_id,
+                    query_text=query,
+                    filters_applied=filters,
+                    results_count=response.total_count,
+                )
+            except Exception:
+                pass  # Don't let logging failures break search
 
         return SearchResponseType(
             results=results,
@@ -905,13 +938,18 @@ class IntelligenceQuery(graphene.ObjectType):
 class GenerateRecommendations(graphene.Mutation):
     """Trigger async recommendation generation for current user."""
     task_id = graphene.String()
+    success = graphene.Boolean()
 
     @require_authentication
     def mutate(self, info):
-        task_id = RecommendationService.generate_for_user(
-            info.context.user.id,
-        )
-        return GenerateRecommendations(task_id=task_id)
+        try:
+            task_id = RecommendationService.generate_for_user(
+                info.context.user.id,
+            )
+            return GenerateRecommendations(task_id=task_id, success=True)
+        except Exception as exc:
+            logger.error('GenerateRecommendations mutation failed: %s', exc)
+            return GenerateRecommendations(task_id=None, success=False)
 
 
 class ClickRecommendation(graphene.Mutation):

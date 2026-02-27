@@ -29,7 +29,7 @@ const mockUser: AuthUser = {
   email: 'alice@nova.test',
   firstName: 'Alice',
   lastName: 'Smith',
-  role: 'MEMBER',
+  role: 'USER',
   isVerified: true,
 };
 

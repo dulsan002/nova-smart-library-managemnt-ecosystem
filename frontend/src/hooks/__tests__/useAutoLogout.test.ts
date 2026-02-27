@@ -35,7 +35,7 @@ describe('useAutoLogout', () => {
         email: 'test@test.com',
         firstName: 'A',
         lastName: 'B',
-        role: 'MEMBER',
+        role: 'USER',
         isVerified: true,
       },
       isAuthenticated: true,

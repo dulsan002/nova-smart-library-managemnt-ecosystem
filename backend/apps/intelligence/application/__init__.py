@@ -69,12 +69,31 @@ class RecommendationService:
     @staticmethod
     def generate_for_user(user_id):
         """
-        Kick off async recommendation generation via Celery.
-        Returns the task ID for status polling.
+        Generate recommendations for a user.
+        Tries Celery async first; falls back to synchronous if Redis/Celery
+        is unavailable.
+        Returns the task ID (async) or 'sync' (synchronous).
         """
         from apps.intelligence.infrastructure.tasks import generate_recommendations
-        result = generate_recommendations.delay(str(user_id))
-        return result.id
+        try:
+            result = generate_recommendations.delay(str(user_id))
+            # In eager mode, result is an EagerResult — task already ran
+            return getattr(result, 'id', 'sync')
+        except Exception as exc:
+            # Celery/Redis unavailable — run synchronously
+            logger.info(
+                'Celery unavailable (%s), generating recommendations synchronously for user %s',
+                exc, user_id,
+            )
+            try:
+                generate_recommendations(str(user_id))
+            except Exception as inner_exc:
+                logger.error(
+                    'Synchronous recommendation generation failed for user %s: %s',
+                    user_id, inner_exc,
+                )
+                raise
+            return 'sync'
 
     @staticmethod
     def record_click(recommendation_id, user_id):

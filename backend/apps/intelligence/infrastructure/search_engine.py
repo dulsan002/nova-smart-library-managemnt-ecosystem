@@ -15,6 +15,7 @@ The search pipeline:
 
 import logging
 import re
+import uuid as _uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -590,7 +591,11 @@ class SearchEngine:
         elapsed_ms = (time.monotonic() - start) * 1000
 
         # Facets
-        facets = SearchEngine._compute_facets(merged)
+        try:
+            facets = SearchEngine._compute_facets(merged)
+        except Exception as exc:
+            logger.warning('Facet computation failed: %s', exc)
+            facets = {}
 
         return SearchResponse(
             results=page_results,
@@ -618,8 +623,19 @@ class SearchEngine:
         boosts = {}
         from apps.catalog.domain.models import Book
 
-        preferred_cats = pref.preferred_categories or []
-        preferred_auths = pref.preferred_authors or []
+        def _valid_uuids(raw_list):
+            """Filter a JSON list down to valid UUID strings only."""
+            valid = []
+            for v in (raw_list or []):
+                try:
+                    _uuid.UUID(str(v))
+                    valid.append(str(v))
+                except (ValueError, AttributeError):
+                    continue
+            return valid
+
+        preferred_cats = _valid_uuids(pref.preferred_categories)
+        preferred_auths = _valid_uuids(pref.preferred_authors)
 
         if preferred_cats:
             for book in Book.objects.filter(

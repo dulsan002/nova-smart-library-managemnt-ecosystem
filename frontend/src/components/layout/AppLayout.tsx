@@ -25,7 +25,7 @@ export function AppLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto nova-scrollbar">
-          <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
+          <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 2xl:px-12">
             <Breadcrumbs className="mb-4" />
             <Suspense fallback={<LoadingScreen />}>
               <Outlet />

@@ -9,26 +9,24 @@ describe('constants', () => {
     it('has all expected roles', () => {
       expect(ROLES.SUPER_ADMIN).toBe('SUPER_ADMIN');
       expect(ROLES.LIBRARIAN).toBe('LIBRARIAN');
-      expect(ROLES.LIBRARY_ASSISTANT).toBe('LIBRARY_ASSISTANT');
-      expect(ROLES.MEMBER).toBe('MEMBER');
-      expect(ROLES.STUDENT).toBe('STUDENT');
-      expect(ROLES.GUEST).toBe('GUEST');
+      expect(ROLES.ASSISTANT).toBe('ASSISTANT');
+      expect(ROLES.USER).toBe('USER');
     });
 
-    it('has exactly 6 roles', () => {
-      expect(Object.keys(ROLES)).toHaveLength(6);
+    it('has exactly 4 roles', () => {
+      expect(Object.keys(ROLES)).toHaveLength(4);
     });
   });
 
   describe('ADMIN_ROLES', () => {
-    it('includes SUPER_ADMIN, LIBRARIAN, LIBRARY_ASSISTANT', () => {
+    it('includes SUPER_ADMIN, LIBRARIAN, ASSISTANT', () => {
       expect(ADMIN_ROLES).toContain('SUPER_ADMIN');
       expect(ADMIN_ROLES).toContain('LIBRARIAN');
-      expect(ADMIN_ROLES).toContain('LIBRARY_ASSISTANT');
+      expect(ADMIN_ROLES).toContain('ASSISTANT');
     });
 
-    it('does not include MEMBER', () => {
-      expect(ADMIN_ROLES).not.toContain('MEMBER');
+    it('does not include USER', () => {
+      expect(ADMIN_ROLES).not.toContain('USER');
     });
   });
 

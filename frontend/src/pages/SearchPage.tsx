@@ -26,23 +26,27 @@ export default function SearchPage() {
   const initialQ = searchParams.get('q') || '';
 
   const [query, setQuery] = useState(initialQ);
+  const [hasSearched, setHasSearched] = useState(!!initialQ);
   const debouncedQuery = useDebounce(query, 300);
 
-  // Auto-suggest
+  // Auto-suggest — only when user is typing (not after a search was submitted)
+  const shouldSuggest = debouncedQuery.length >= 2 && !hasSearched;
   const { data: suggestData, loading: suggestLoading, error: suggestError } = useQuery(AUTO_SUGGEST, {
     variables: { prefix: debouncedQuery, limit: 8 },
-    skip: debouncedQuery.length < 2,
+    skip: !shouldSuggest,
   });
 
   if (suggestError) {
     console.warn('Auto-suggest error:', suggestError.message);
   }
 
-  const suggestions = (suggestData?.autoSuggest ?? []).map((s: any, i: number) => ({
-    id: `${i}`,
-    text: s.text ?? s,
-    category: s.category,
-  }));
+  const suggestions = shouldSuggest
+    ? (suggestData?.autoSuggest ?? []).map((s: any, i: number) => ({
+        id: `${i}`,
+        text: s.text ?? s,
+        category: s.category,
+      }))
+    : [];
 
   // Search results (hybrid)
   const [doSearch, { data: searchData, loading: searching, error: searchError }] = useLazyQuery(SEARCH_BOOKS);
@@ -57,11 +61,21 @@ export default function SearchPage() {
   const executeSearch = useCallback(
     (q: string) => {
       if (!q.trim()) return;
+      setHasSearched(true);
       setSearchParams({ q });
       doSearch({ variables: { query: q, pageSize: 50 } });
       doAiSearch({ variables: { query: q } });
     },
     [doSearch, doAiSearch, setSearchParams],
+  );
+
+  // When user changes the query text, reset hasSearched so suggestions reappear
+  const handleQueryChange = useCallback(
+    (val: string) => {
+      setQuery(val);
+      if (hasSearched) setHasSearched(false);
+    },
+    [hasSearched],
   );
 
   // Run search on initial load with URL query
@@ -90,11 +104,11 @@ export default function SearchPage() {
       {/* Search bar */}
       <SearchInput
         value={query}
-        onChange={setQuery}
+        onChange={handleQueryChange}
         onSubmit={executeSearch}
         suggestions={suggestions}
         onSuggestionClick={handleSuggestionClick}
-        showSuggestions={debouncedQuery.length >= 2 && !searching}
+        showSuggestions={shouldSuggest && suggestions.length > 0}
         loading={suggestLoading}
         placeholder="Search by title, author, topic, or ask a question…"
         size="lg"

@@ -7,15 +7,13 @@ export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Nova Library';
 export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
   LIBRARIAN: 'LIBRARIAN',
-  LIBRARY_ASSISTANT: 'LIBRARY_ASSISTANT',
-  MEMBER: 'MEMBER',
-  STUDENT: 'STUDENT',
-  GUEST: 'GUEST',
+  ASSISTANT: 'ASSISTANT',
+  USER: 'USER',
 } as const;
 
 export type UserRole = (typeof ROLES)[keyof typeof ROLES];
 
-export const ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'LIBRARIAN', 'LIBRARY_ASSISTANT'];
+export const ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'LIBRARIAN', 'ASSISTANT'];
 export const STAFF_ROLES: UserRole[] = ['SUPER_ADMIN', 'LIBRARIAN'];
 
 export const BORROW_STATUS = {

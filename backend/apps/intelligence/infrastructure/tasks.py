@@ -76,6 +76,10 @@ def generate_recommendations(self, user_id: str):
             'Recommendation generation failed for user %s: %s',
             user_id, exc,
         )
+        # In eager mode, retry raises immediately — guard against it
+        from django.conf import settings as _settings
+        if getattr(_settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+            raise
         raise self.retry(exc=exc)
 
 
