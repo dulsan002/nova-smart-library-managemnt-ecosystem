@@ -59,6 +59,12 @@ frontend/dist/
 frontend/build/
 .next/
 
+# Generated config files (compiled from .ts sources)
+frontend/*.config.js
+frontend/*.config.d.ts
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
 # AI Models (large files)
 *.pkl
 *.h5
