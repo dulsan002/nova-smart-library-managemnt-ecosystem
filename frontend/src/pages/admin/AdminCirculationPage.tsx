@@ -33,6 +33,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
 import { Pagination } from '@/components/ui/Pagination';
@@ -86,10 +87,12 @@ export default function AdminCirculationPage() {
   useDocumentTitle('Manage Circulation');
 
   const [activeTab, setActiveTab] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Borrows state
   const [statusFilter, setStatusFilter] = useState('');
   const [after, setAfter] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
 
   // Fines state
   const [fineStatusFilter, setFineStatusFilter] = useState('');
@@ -169,11 +172,45 @@ export default function AdminCirculationPage() {
     console.log('[Circulation] finesData:', finesData, 'error:', finesError);
   }, [finesData, finesError]);
 
-  const edges = (borrowsData?.allBorrows?.edges ?? []).map((e: any) => e.node);
+  const allEdges = (borrowsData?.allBorrows?.edges ?? []).map((e: any) => e.node);
   const pageInfo = borrowsData?.allBorrows?.pageInfo;
-  const overdueList = overdueData?.overdueBorrows ?? [];
-  const pickupsList = pickupsData?.pendingPickups ?? [];
-  const finesList = finesData?.allFines ?? [];
+  const allOverdueList = overdueData?.overdueBorrows ?? [];
+  const allPickupsList = pickupsData?.pendingPickups ?? [];
+  const allFinesList = finesData?.allFines ?? [];
+
+  /* ── search filter helper ── */
+  const q = searchTerm.trim().toLowerCase();
+
+  const matchesBorrow = (b: any) => {
+    if (!q) return true;
+    const title = (b.bookCopy?.book?.title ?? '').toLowerCase();
+    const name = `${b.user?.firstName ?? ''} ${b.user?.lastName ?? ''}`.toLowerCase();
+    const email = (b.user?.email ?? '').toLowerCase();
+    const barcode = (b.bookCopy?.barcode ?? '').toLowerCase();
+    return title.includes(q) || name.includes(q) || email.includes(q) || barcode.includes(q);
+  };
+
+  const matchesPickup = (r: any) => {
+    if (!q) return true;
+    const title = (r.book?.title ?? '').toLowerCase();
+    const name = `${r.user?.firstName ?? ''} ${r.user?.lastName ?? ''}`.toLowerCase();
+    const email = (r.user?.email ?? '').toLowerCase();
+    const barcode = (r.assignedCopy?.barcode ?? '').toLowerCase();
+    return title.includes(q) || name.includes(q) || email.includes(q) || barcode.includes(q);
+  };
+
+  const matchesFine = (f: any) => {
+    if (!q) return true;
+    const title = (f.borrowRecord?.bookCopy?.book?.title ?? '').toLowerCase();
+    const name = `${f.user?.firstName ?? ''} ${f.user?.lastName ?? ''}`.toLowerCase();
+    const email = (f.user?.email ?? '').toLowerCase();
+    return title.includes(q) || name.includes(q) || email.includes(q);
+  };
+
+  const edges = allEdges.filter(matchesBorrow);
+  const overdueList = allOverdueList.filter(matchesBorrow);
+  const pickupsList = allPickupsList.filter(matchesPickup);
+  const finesList = allFinesList.filter(matchesFine);
 
   /* ── mutations ── */
 
@@ -273,12 +310,23 @@ export default function AdminCirculationPage() {
         </Button>
       </div>
 
+      {/* Search bar */}
+      <div className="max-w-md">
+        <Input
+          placeholder="Search by book, borrower, email, or barcode…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          leftIcon={<MagnifyingGlassIcon className="h-5 w-5 text-nova-text-muted" />}
+        />
+      </div>
+
       <Tabs
         tabs={tabs}
         active={activeTab}
         onChange={(i) => {
           setActiveTab(i);
           setAfter(null);
+          setCursorStack([]);
         }}
       />
 
@@ -303,6 +351,7 @@ export default function AdminCirculationPage() {
                 onChange={(v) => {
                   setStatusFilter(v);
                   setAfter(null);
+                  setCursorStack([]);
                 }}
                 options={borrowStatusOptions}
               />
@@ -402,8 +451,17 @@ export default function AdminCirculationPage() {
 
           {pageInfo && (
             <Pagination
-              pageInfo={pageInfo}
-              onNext={() => setAfter(pageInfo.endCursor)}
+              pageInfo={{ ...pageInfo, hasPreviousPage: cursorStack.length > 0 }}
+              onNext={() => {
+                setCursorStack((prev) => [...prev, after ?? '']);
+                setAfter(pageInfo.endCursor);
+              }}
+              onPrev={() => {
+                const stack = [...cursorStack];
+                const prev = stack.pop() ?? '';
+                setCursorStack(stack);
+                setAfter(prev === '' ? null : prev);
+              }}
             />
           )}
         </>

@@ -16,6 +16,7 @@ import {
   TrashIcon,
   ArrowPathIcon,
   ShieldCheckIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { useDocumentTitle } from '@/hooks';
 import { GET_ASSETS, GET_ASSET_CATEGORIES, GET_ASSET_STATS, GET_MAINTENANCE_LOGS } from '@/graphql/queries/assets';
@@ -86,6 +87,12 @@ export default function AdminAssetsPage() {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editAssetId, setEditAssetId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '', description: '', status: 'ACTIVE', condition: 'GOOD',
+    floorNumber: '', room: '',
+  });
 
   // Form state
   const [form, setForm] = useState({
@@ -110,7 +117,7 @@ export default function AdminAssetsPage() {
 
   // Mutations
   const [createAsset, { loading: creating }] = useMutation(CREATE_ASSET);
-  const [updateAsset] = useMutation(UPDATE_ASSET);
+  const [updateAsset, { loading: updating }] = useMutation(UPDATE_ASSET);
   const [deleteAsset] = useMutation(DELETE_ASSET);
   const [logMaintenance, { loading: logMaintLoading }] = useMutation(LOG_MAINTENANCE);
   const [createCategory, { loading: creatingCat }] = useMutation(CREATE_ASSET_CATEGORY);
@@ -143,6 +150,39 @@ export default function AdminAssetsPage() {
       refetchAssets();
     } catch (err) { toast.error(extractGqlError(err)); }
   }, [updateAsset, refetchAssets]);
+
+  const openEditModal = useCallback((asset: any) => {
+    setEditAssetId(asset.id);
+    setEditForm({
+      name: asset.name || '',
+      description: asset.description || '',
+      status: asset.status || 'ACTIVE',
+      condition: asset.condition || 'GOOD',
+      floorNumber: asset.floorNumber?.toString() || '',
+      room: asset.room || '',
+    });
+    setShowEditModal(true);
+  }, []);
+
+  const handleEditAsset = useCallback(async () => {
+    if (!editAssetId) return;
+    try {
+      await updateAsset({
+        variables: {
+          id: editAssetId,
+          name: editForm.name || undefined,
+          status: editForm.status || undefined,
+          condition: editForm.condition || undefined,
+          floorNumber: editForm.floorNumber ? parseInt(editForm.floorNumber) : undefined,
+          room: editForm.room || undefined,
+          description: editForm.description || undefined,
+        },
+      });
+      toast.success('Asset updated successfully');
+      setShowEditModal(false);
+      refetchAssets();
+    } catch (err) { toast.error(extractGqlError(err)); }
+  }, [editAssetId, editForm, updateAsset, refetchAssets]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Are you sure you want to delete this asset?')) return;
@@ -302,6 +342,9 @@ export default function AdminAssetsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => openEditModal(asset)} title="Edit Asset">
+                            <PencilSquareIcon className="h-4 w-4 text-blue-500" />
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => { setSelectedAssetId(asset.id); setShowMaintenanceModal(true); }}>
                             <WrenchScrewdriverIcon className="h-4 w-4" />
                           </Button>
@@ -438,6 +481,28 @@ export default function AdminAssetsPage() {
           <Button variant="outline" onClick={() => setShowCategoryModal(false)}>Cancel</Button>
           <Button onClick={handleCreateCategory} disabled={creatingCat || !catForm.name || !catForm.slug}>
             {creatingCat ? 'Creating...' : 'Create Category'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Edit Asset Modal */}
+      <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Asset" size="lg">
+        <ModalBody>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Input label="Name *" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            </div>
+            <Select label="Status" value={editForm.status} onChange={(value) => setEditForm({ ...editForm, status: value })} options={STATUS_OPTIONS.filter((o) => o.value)} />
+            <Select label="Condition" value={editForm.condition} onChange={(value) => setEditForm({ ...editForm, condition: value })} options={CONDITION_OPTIONS} />
+            <Input label="Floor Number" type="number" value={editForm.floorNumber} onChange={(e) => setEditForm({ ...editForm, floorNumber: e.target.value })} />
+            <Input label="Room" value={editForm.room} onChange={(e) => setEditForm({ ...editForm, room: e.target.value })} placeholder="e.g. Main Reading Hall" />
+          </div>
+          <Input label="Description" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="mt-4" placeholder="Brief description" />
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
+          <Button onClick={handleEditAsset} disabled={updating || !editForm.name}>
+            {updating ? 'Saving...' : 'Save Changes'}
           </Button>
         </ModalFooter>
       </Modal>

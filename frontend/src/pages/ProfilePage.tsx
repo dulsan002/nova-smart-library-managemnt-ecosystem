@@ -7,6 +7,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
+import { useState } from 'react';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useDocumentTitle } from '@/hooks';
 import { ME } from '@/graphql/queries/auth';
 import { UPDATE_PROFILE, CHANGE_PASSWORD } from '@/graphql/mutations/auth';
@@ -169,13 +171,32 @@ function ChangePasswordForm() {
     resolver: zodResolver(passwordSchema),
   });
 
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [changePassword, { loading }] = useMutation(CHANGE_PASSWORD, {
     onCompleted: () => {
       toast.success('Password changed successfully');
       reset();
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
     },
     onError: (err) => toast.error(extractGqlError(err)),
   });
+
+  const passwordToggle = (show: boolean, setShow: (v: boolean) => void) => (
+    <button
+      type="button"
+      onClick={() => setShow(!show)}
+      className="rounded-md p-0.5 text-nova-text-muted transition-colors hover:text-nova-text focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+      tabIndex={-1}
+      aria-label={show ? 'Hide password' : 'Show password'}
+    >
+      {show ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+    </button>
+  );
 
   return (
     <Card>
@@ -194,21 +215,24 @@ function ChangePasswordForm() {
       >
         <Input
           label="Current password"
-          type="password"
+          type={showOldPassword ? 'text' : 'password'}
           error={errors.oldPassword?.message}
+          rightIcon={passwordToggle(showOldPassword, setShowOldPassword)}
           {...register('oldPassword')}
         />
         <Input
           label="New password"
-          type="password"
+          type={showNewPassword ? 'text' : 'password'}
           error={errors.newPassword?.message}
           helperText="At least 8 characters"
+          rightIcon={passwordToggle(showNewPassword, setShowNewPassword)}
           {...register('newPassword')}
         />
         <Input
           label="Confirm new password"
-          type="password"
+          type={showConfirmPassword ? 'text' : 'password'}
           error={errors.confirmPassword?.message}
+          rightIcon={passwordToggle(showConfirmPassword, setShowConfirmPassword)}
           {...register('confirmPassword')}
         />
         <div className="flex justify-end">

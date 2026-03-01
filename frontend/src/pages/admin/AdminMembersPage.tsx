@@ -111,6 +111,7 @@ export default function AdminMembersPage() {
 
   const [search, setSearch] = useState('');
   const [after, setAfter] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const debouncedSearch = useDebounce(search, 400);
@@ -312,18 +313,18 @@ export default function AdminMembersPage() {
               type="text"
               placeholder="Search by name, email, phone, ID..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setAfter(null); }}
+              onChange={(e) => { setSearch(e.target.value); setAfter(null); setCursorStack([]); }}
               className="w-full rounded-lg border border-nova-border bg-nova-surface py-2 pl-9 pr-3 text-sm text-nova-text placeholder:text-nova-text-muted focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/30"
             />
           </div>
           <Select
             value={typeFilter}
-            onChange={(v) => { setTypeFilter(v); setAfter(null); }}
+            onChange={(v) => { setTypeFilter(v); setAfter(null); setCursorStack([]); }}
             options={typeOptions}
           />
           <Select
             value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setAfter(null); }}
+            onChange={(v) => { setStatusFilter(v); setAfter(null); setCursorStack([]); }}
             options={statusOptions}
           />
         </div>
@@ -403,7 +404,23 @@ export default function AdminMembersPage() {
         </Card>
       )}
 
-      {pageInfo && <Pagination pageInfo={pageInfo} totalCount={totalCount} currentCount={edges.length} onNext={() => setAfter(pageInfo.endCursor)} />}
+      {pageInfo && (
+        <Pagination
+          pageInfo={{ ...pageInfo, hasPreviousPage: cursorStack.length > 0 }}
+          totalCount={totalCount}
+          currentCount={edges.length}
+          onNext={() => {
+            setCursorStack((prev) => [...prev, after ?? '']);
+            setAfter(pageInfo.endCursor);
+          }}
+          onPrev={() => {
+            const stack = [...cursorStack];
+            const prev = stack.pop() ?? '';
+            setCursorStack(stack);
+            setAfter(prev === '' ? null : prev);
+          }}
+        />
+      )}
 
       {/* ─── 360° VIEW MODAL ─── */}
       <Modal open={!!viewMemberId} onClose={() => setViewMemberId(null)} title="" size="full">

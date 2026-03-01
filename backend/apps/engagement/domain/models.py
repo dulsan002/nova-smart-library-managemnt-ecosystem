@@ -75,15 +75,19 @@ class UserEngagement(UUIDModel):
         cap = getattr(settings, 'ENGAGEMENT_CONFIG', {}).get('DAILY_KP_CAP', 200)
         return (self.kp_earned_today + amount) <= cap
 
-    def award_kp(self, points: int, dimension: str = ''):
+    def award_kp(self, points: int, dimension: str = '', bypass_cap: bool = False):
         """
         Add KP to the user's balance and appropriate dimension.
         Returns the actual points awarded (may be capped).
+        Set bypass_cap=True for admin adjustments that should ignore the daily cap.
         """
         self._check_daily_cap_reset()
-        cap = getattr(settings, 'ENGAGEMENT_CONFIG', {}).get('DAILY_KP_CAP', 200)
-        remaining = cap - self.kp_earned_today
-        actual = min(points, max(remaining, 0))
+        if bypass_cap:
+            actual = points
+        else:
+            cap = getattr(settings, 'ENGAGEMENT_CONFIG', {}).get('DAILY_KP_CAP', 200)
+            remaining = cap - self.kp_earned_today
+            actual = min(points, max(remaining, 0))
 
         if actual <= 0:
             return 0

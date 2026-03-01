@@ -26,9 +26,11 @@ import {
   ChevronRightIcon,
   BookOpenIcon,
   ChartBarIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useDocumentTitle } from '@/hooks';
 import { MY_ENGAGEMENT, MY_DAILY_ACTIVITY, MY_RANK, MY_ACHIEVEMENTS, ALL_ACHIEVEMENTS } from '@/graphql/queries/engagement';
+import { MY_KP_HISTORY } from '@/graphql/queries/governance';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -376,12 +378,14 @@ export default function KnowledgePointsPage() {
   const { data: rankData } = useQuery(MY_RANK);
   const { data: myAchData } = useQuery(MY_ACHIEVEMENTS);
   const { data: allAchData } = useQuery(ALL_ACHIEVEMENTS);
+  const { data: kpHistData } = useQuery(MY_KP_HISTORY, { variables: { limit: 20 } });
 
   const engagement = engData?.myEngagement;
   const activities = actData?.myDailyActivity ?? [];
   const rank = rankData?.myRank;
   const myAchievements = myAchData?.myAchievements ?? [];
   const allAchievements = allAchData?.allAchievements ?? [];
+  const kpHistory = kpHistData?.myKpHistory ?? [];
 
   const todayKp = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -699,6 +703,46 @@ export default function KnowledgePointsPage() {
           </div>
         </Card>
       </div>
+
+      {/* ─── KP History ─── */}
+      {kpHistory.length > 0 && (
+        <Card>
+          <CardHeader title="KP History" icon={<ClockIcon className="h-5 w-5" />} />
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-nova-border bg-nova-surface text-left text-xs font-medium uppercase tracking-wider text-nova-text-muted">
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Action</th>
+                  <th className="px-4 py-3">Dimension</th>
+                  <th className="px-4 py-3 text-right">Points</th>
+                  <th className="px-4 py-3 text-right">Balance</th>
+                  <th className="px-4 py-3">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-nova-border">
+                {kpHistory.map((entry: any) => {
+                  const isPositive = ['AWARD', 'BONUS', 'ADMIN_ADJUST'].includes(entry.action);
+                  return (
+                    <tr key={entry.id} className="hover:bg-nova-surface-hover transition-colors">
+                      <td className="px-4 py-3 text-xs text-nova-text-muted whitespace-nowrap">{formatDate(entry.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={isPositive ? 'success' : 'danger'} size="xs">{entry.action}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-nova-text-muted">{entry.dimension || '—'}</td>
+                      <td className={cn('px-4 py-3 text-right font-bold text-sm', isPositive ? 'text-green-600' : 'text-red-600')}>
+                        {isPositive ? '+' : '-'}{entry.points}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs font-medium text-nova-text">{entry.balanceAfter?.toLocaleString() ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-nova-text-muted max-w-xs truncate">{entry.description || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* ─── Tips Section ─── */}
       <Card className="bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/10 dark:to-accent-900/10">

@@ -105,6 +105,7 @@ export const USER_FINES = gql`
         id
         bookCopy {
           book {
+            id
             title
           }
         }

@@ -283,7 +283,14 @@ class ChangePasswordUseCase:
                 message='Current password is incorrect.',
             )
 
-        validate_password_strength(dto.new_password)
+        pw_result = validate_password_strength(dto.new_password)
+        if not pw_result['is_valid']:
+            raise ValidationError(
+                message='; '.join(pw_result['issues']),
+                field='password',
+                details={'issues': pw_result['issues']},
+            )
+
         user.set_password(dto.new_password)
         self._user_repo.save(user)
 

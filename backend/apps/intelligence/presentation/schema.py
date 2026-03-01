@@ -896,7 +896,7 @@ class IntelligenceQuery(graphene.ObjectType):
             try:
                 from apps.digital_content.domain.models import DigitalAsset
                 asset = DigitalAsset.objects.get(id=asset_id)
-                pred = CompletionPredictor.predict(info.context.user, asset)
+                pred = CompletionPredictor.predict(info.context.user, asset.id)
                 results.append(CompletionPredictionType(
                     asset_id=asset.id,
                     title=asset.book.title if asset.book else 'Unknown',

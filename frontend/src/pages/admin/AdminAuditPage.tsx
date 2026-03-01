@@ -53,6 +53,7 @@ export default function AdminAuditPage() {
 
   // Audit log state
   const [logAfter, setLogAfter] = useState<string | null>(null);
+  const [logCursorStack, setLogCursorStack] = useState<string[]>([]);
   const [logActionFilter, setLogActionFilter] = useState('');
 
   // Security event state
@@ -117,6 +118,7 @@ export default function AdminAuditPage() {
                 onChange={(v) => {
                   setLogActionFilter(v);
                   setLogAfter(null);
+                  setLogCursorStack([]);
                 }}
                 options={[
                   { value: '', label: 'All actions' },
@@ -194,8 +196,17 @@ export default function AdminAuditPage() {
 
           {logPageInfo && (
             <Pagination
-              pageInfo={logPageInfo}
-              onNext={() => setLogAfter(logPageInfo.endCursor)}
+              pageInfo={{ ...logPageInfo, hasPreviousPage: logCursorStack.length > 0 }}
+              onNext={() => {
+                setLogCursorStack((prev) => [...prev, logAfter ?? '']);
+                setLogAfter(logPageInfo.endCursor);
+              }}
+              onPrev={() => {
+                const stack = [...logCursorStack];
+                const prev = stack.pop() ?? '';
+                setLogCursorStack(stack);
+                setLogAfter(prev === '' ? null : prev);
+              }}
             />
           )}
         </>

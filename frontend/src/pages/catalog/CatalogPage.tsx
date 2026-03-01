@@ -65,6 +65,7 @@ export default function CatalogPage() {
   const [view, setView] = useState<ViewMode>('grid');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // Filters from URL
@@ -137,10 +138,12 @@ export default function CatalogPage() {
     else p.delete(key);
     p.delete('after');
     p.delete('before');
+    setCursorStack([]);
     setSearchParams(p);
   }
 
   function handleNext() {
+    setCursorStack((prev) => [...prev, afterCursor ?? '']);
     const p = new URLSearchParams(searchParams);
     p.set('after', pageInfo.endCursor || '');
     p.delete('before');
@@ -149,9 +152,13 @@ export default function CatalogPage() {
   }
 
   function handlePrev() {
+    const stack = [...cursorStack];
+    const prev = stack.pop() ?? '';
+    setCursorStack(stack);
     const p = new URLSearchParams(searchParams);
-    p.set('before', pageInfo.startCursor || '');
-    p.delete('after');
+    if (prev) p.set('after', prev);
+    else p.delete('after');
+    p.delete('before');
     setSearchParams(p);
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -555,7 +562,7 @@ export default function CatalogPage() {
           {books.length > 0 && (
             <div className="mt-6">
               <Pagination
-                pageInfo={pageInfo}
+                pageInfo={{ ...pageInfo, hasPreviousPage: cursorStack.length > 0 }}
                 totalCount={totalCount}
                 currentCount={books.length}
                 onNext={handleNext}

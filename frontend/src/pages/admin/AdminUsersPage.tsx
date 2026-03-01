@@ -12,6 +12,7 @@ import {
   ShieldCheckIcon,
   ShieldExclamationIcon,
   EyeIcon,
+  EyeSlashIcon,
   PencilSquareIcon,
   BookOpenIcon,
   BanknotesIcon,
@@ -30,6 +31,7 @@ import {
   UserCircleIcon,
   HashtagIcon,
   GlobeAltIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useDocumentTitle, useDebounce } from '@/hooks';
 import {
@@ -38,7 +40,7 @@ import {
   USER_ENGAGEMENT, USER_ACHIEVEMENTS,
 } from '@/graphql/queries/admin';
 import {
-  ACTIVATE_USER, DEACTIVATE_USER, CHANGE_USER_ROLE, ADMIN_UPDATE_USER, ADMIN_CREATE_USER,
+  ACTIVATE_USER, DEACTIVATE_USER, CHANGE_USER_ROLE, ADMIN_UPDATE_USER, ADMIN_CREATE_USER, ADMIN_AWARD_KP,
 } from '@/graphql/mutations/admin';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -114,6 +116,7 @@ export default function AdminUsersPage() {
   const [activeFilter, setActiveFilter] = useState('');
   const debouncedSearch = useDebounce(search, 400);
   const [after, setAfter] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
 
   // View & Edit modals
   const [viewUserId, setViewUserId] = useState<string | null>(null);
@@ -135,11 +138,18 @@ export default function AdminUsersPage() {
 
   // Create User modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [createForm, setCreateForm] = useState({
     firstName: '', lastName: '', email: '', password: '',
     phoneNumber: '', dateOfBirth: '', institutionId: '',
     nicNumber: '', role: 'USER',
   });
+
+  // Award KP modal
+  const [showAwardKPModal, setShowAwardKPModal] = useState(false);
+  const [awardKPUserId, setAwardKPUserId] = useState<string | null>(null);
+  const [awardKPUserName, setAwardKPUserName] = useState('');
+  const [awardKPForm, setAwardKPForm] = useState({ points: '', reason: '', dimension: '' });
 
   /* ─── LIST query ─────────────────────── */
   const { data, loading, refetch } = useQuery(GET_USERS, {
@@ -203,6 +213,17 @@ export default function AdminUsersPage() {
   });
   const [adminCreateUser, { loading: creatingUser }] = useMutation(ADMIN_CREATE_USER, {
     onCompleted: () => { toast.success('User created successfully'); setShowCreateModal(false); setCreateForm({ firstName: '', lastName: '', email: '', password: '', phoneNumber: '', dateOfBirth: '', institutionId: '', nicNumber: '', role: 'USER' }); refetch(); },
+    onError: (e) => toast.error(extractGqlError(e)),
+  });
+  const [adminAwardKP, { loading: awardingKP }] = useMutation(ADMIN_AWARD_KP, {
+    onCompleted: (d) => {
+      const pts = d?.adminAwardKp?.actualPoints ?? 0;
+      toast.success(`Awarded ${pts} KP successfully`);
+      setShowAwardKPModal(false);
+      setAwardKPForm({ points: '', reason: '', dimension: '' });
+      // Refetch engagement data for the 360° view
+      if (awardKPUserId) fetchEngagement({ variables: { userId: awardKPUserId } });
+    },
     onError: (e) => toast.error(extractGqlError(e)),
   });
 
@@ -488,9 +509,14 @@ export default function AdminUsersPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="p-6 space-y-5">
-            <h4 className="text-xs font-bold text-nova-text-muted uppercase tracking-widest flex items-center gap-2">
-              <StarIcon className="h-4 w-4" /> Knowledge Points
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-nova-text-muted uppercase tracking-widest flex items-center gap-2">
+                <StarIcon className="h-4 w-4" /> Knowledge Points
+              </h4>
+              <Button size="sm" onClick={() => { setAwardKPUserId(viewUserId); setAwardKPUserName(viewUser?.fullName ?? viewUser?.email ?? ''); setShowAwardKPModal(true); }} className="gap-1.5">
+                <SparklesIcon className="h-4 w-4" /> Award KP
+              </Button>
+            </div>
             <div className="flex items-center gap-5">
               <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-lg">
                 <span className="text-2xl font-black">{engagement.level ?? 0}</span>
@@ -594,10 +620,10 @@ export default function AdminUsersPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="w-64">
-          <Input placeholder="Search name or email…" value={search} onChange={(e) => { setSearch(e.target.value); setAfter(null); }} leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />} />
+          <Input placeholder="Search name or email…" value={search} onChange={(e) => { setSearch(e.target.value); setAfter(null); setCursorStack([]); }} leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />} />
         </div>
-        <div className="w-44"><Select value={roleFilter} onChange={(v) => { setRoleFilter(v); setAfter(null); }} options={roleFilterOptions} /></div>
-        <div className="w-36"><Select value={activeFilter} onChange={(v) => { setActiveFilter(v); setAfter(null); }} options={statusOptions} /></div>
+        <div className="w-44"><Select value={roleFilter} onChange={(v) => { setRoleFilter(v); setAfter(null); setCursorStack([]); }} options={roleFilterOptions} /></div>
+        <div className="w-36"><Select value={activeFilter} onChange={(v) => { setActiveFilter(v); setAfter(null); setCursorStack([]); }} options={statusOptions} /></div>
       </div>
 
       {/* Table */}
@@ -678,7 +704,23 @@ export default function AdminUsersPage() {
         </Card>
       )}
 
-      {pageInfo && <Pagination pageInfo={pageInfo} totalCount={totalCount} currentCount={edges.length} onNext={() => setAfter(pageInfo.endCursor)} />}
+      {pageInfo && (
+        <Pagination
+          pageInfo={{ ...pageInfo, hasPreviousPage: cursorStack.length > 0 }}
+          totalCount={totalCount}
+          currentCount={edges.length}
+          onNext={() => {
+            setCursorStack((prev) => [...prev, after ?? '']);
+            setAfter(pageInfo.endCursor);
+          }}
+          onPrev={() => {
+            const stack = [...cursorStack];
+            const prev = stack.pop() ?? '';
+            setCursorStack(stack);
+            setAfter(prev === '' ? null : prev);
+          }}
+        />
+      )}
 
       {/* ─── 360° VIEW MODAL ─────────────── */}
       <Modal open={!!viewUserId} onClose={() => setViewUserId(null)} title="" size="full">
@@ -788,7 +830,11 @@ export default function AdminUsersPage() {
                 <Input label="Email *" type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="john@example.com" />
               </div>
               <div className="sm:col-span-2">
-                <Input label="Password *" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Minimum 8 characters" />
+                <Input label="Password *" type={showCreatePassword ? 'text' : 'password'} value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Minimum 8 characters" rightIcon={
+                  <button type="button" onClick={() => setShowCreatePassword((v) => !v)} className="rounded-md p-0.5 text-nova-text-muted transition-colors hover:text-nova-text focus:outline-none focus:ring-2 focus:ring-primary-500/40" tabIndex={-1} aria-label={showCreatePassword ? 'Hide password' : 'Show password'}>
+                    {showCreatePassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                  </button>
+                } />
               </div>
               <Input label="Phone Number" value={createForm.phoneNumber} onChange={(e) => setCreateForm({ ...createForm, phoneNumber: e.target.value })} leftIcon={<PhoneIcon className="h-4 w-4" />} placeholder="+94 77 123 4567" />
               <Input label="Date of Birth" type="date" value={createForm.dateOfBirth} onChange={(e) => setCreateForm({ ...createForm, dateOfBirth: e.target.value })} leftIcon={<CalendarDaysIcon className="h-4 w-4" />} />
@@ -816,6 +862,47 @@ export default function AdminUsersPage() {
           confirmLabel="Confirm"
         />
       )}
+
+      {/* ─── AWARD KP MODAL ─────────────── */}
+      <Modal open={showAwardKPModal} onClose={() => { setShowAwardKPModal(false); setAwardKPForm({ points: '', reason: '', dimension: '' }); }} title="Award Knowledge Points" size="md">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const pts = parseInt(awardKPForm.points, 10);
+          if (!pts || pts <= 0) { toast.error('Points must be a positive number'); return; }
+          if (!awardKPForm.reason.trim()) { toast.error('Please provide a reason'); return; }
+          if (!awardKPUserId) return;
+          adminAwardKP({
+            variables: {
+              userId: awardKPUserId,
+              points: pts,
+              reason: awardKPForm.reason.trim(),
+              dimension: awardKPForm.dimension || undefined,
+            },
+          });
+        }}>
+          <ModalBody>
+            <p className="mb-4 text-sm text-nova-text-muted">
+              Award KP to <span className="font-semibold text-nova-text">{awardKPUserName}</span>
+            </p>
+            <div className="space-y-4">
+              <Input label="Points *" type="number" min={1} value={awardKPForm.points} onChange={(e) => setAwardKPForm({ ...awardKPForm, points: e.target.value })} placeholder="e.g. 50" />
+              <Input label="Reason *" value={awardKPForm.reason} onChange={(e) => setAwardKPForm({ ...awardKPForm, reason: e.target.value })} placeholder="e.g. Outstanding contribution to library" />
+              <Select label="Dimension (optional)" value={awardKPForm.dimension} onChange={(v) => setAwardKPForm({ ...awardKPForm, dimension: v })} options={[
+                { value: '', label: 'No specific dimension' },
+                { value: 'EXPLORER', label: '🔍 Explorer — Borrowing & Browsing' },
+                { value: 'SCHOLAR', label: '📚 Scholar — Completion & Reviews' },
+                { value: 'CONNECTOR', label: '🤝 Connector — Social & Sharing' },
+                { value: 'ACHIEVER', label: '🏆 Achiever — Achievements & Milestones' },
+                { value: 'DEDICATED', label: '🔥 Dedicated — Streaks & Consistency' },
+              ]} />
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button type="button" variant="outline" onClick={() => setShowAwardKPModal(false)}>Cancel</Button>
+            <Button type="submit" isLoading={awardingKP} className="gap-1.5"><SparklesIcon className="h-4 w-4" />Award KP</Button>
+          </ModalFooter>
+        </form>
+      </Modal>
     </div>
   );
 }

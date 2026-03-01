@@ -40,6 +40,7 @@ import { LoadingScreen } from '@/components/ui/Spinner';
 import { Avatar } from '@/components/ui/Avatar';
 import { Dropdown, type DropdownItem } from '@/components/ui/Dropdown';
 import { Breadcrumbs } from './Breadcrumbs';
+import { SearchOverlay } from './SearchOverlay';
 import { usePermissions, type ModuleKey } from '@/hooks/usePermissions';
 
 type NavItem = { label: string; to: string; icon: React.ComponentType<{ className?: string }>; end?: boolean; module?: ModuleKey };
@@ -259,6 +260,8 @@ export function AdminLayout() {
   );
 
   return (
+    <>
+    <SearchOverlay />
     <div className="flex h-screen overflow-hidden bg-nova-bg">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-col border-r border-nova-border bg-nova-surface lg:flex">
@@ -348,5 +351,6 @@ export function AdminLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }

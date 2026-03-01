@@ -1,7 +1,9 @@
 /**
- * RecommendationsPage — AI-powered book recommendations with click/dismiss.
+ * RecommendationsPage — AI-powered book recommendations with click/dismiss
+ * and reading preferences management.
  */
 
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -10,13 +12,17 @@ import {
   BookOpenIcon,
   XMarkIcon,
   ArrowPathIcon,
+  AdjustmentsHorizontalIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { useDocumentTitle } from '@/hooks';
-import { MY_RECOMMENDATIONS } from '@/graphql/queries/intelligence';
+import { MY_RECOMMENDATIONS, MY_PREFERENCES } from '@/graphql/queries/intelligence';
+import { GET_CATEGORIES } from '@/graphql/queries/catalog';
 import {
   GENERATE_RECOMMENDATIONS,
   CLICK_RECOMMENDATION,
   DISMISS_RECOMMENDATION,
+  UPDATE_PREFERENCES,
 } from '@/graphql/mutations/intelligence';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -26,19 +32,50 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingOverlay } from '@/components/ui/Spinner';
 import { extractGqlError } from '@/lib/utils';
 
+/* ─── Language options ───────────────────── */
+const LANGUAGES = [
+  'English', 'Sinhala', 'Tamil', 'French', 'Spanish', 'German',
+  'Chinese', 'Japanese', 'Korean', 'Arabic', 'Hindi', 'Portuguese',
+];
+
 export default function RecommendationsPage() {
   useDocumentTitle('Recommendations');
+
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
   const { data, loading, refetch } = useQuery(MY_RECOMMENDATIONS, {
     variables: { limit: 20 },
     fetchPolicy: 'cache-and-network',
   });
 
+  const { data: prefData } = useQuery(MY_PREFERENCES);
+  const { data: catData } = useQuery(GET_CATEGORIES, { variables: { rootOnly: true } });
+
   const recommendations = (data?.myRecommendations ?? []).filter((r: any) => r?.book);
+  const categories = catData?.categories ?? [];
+
+  // Sync preferences from server
+  useEffect(() => {
+    if (prefData?.myPreferences) {
+      setSelectedCategories(prefData.myPreferences.preferredCategories ?? []);
+      setSelectedLanguages(prefData.myPreferences.preferredLanguages ?? []);
+    }
+  }, [prefData]);
 
   const [generate, { loading: generating }] = useMutation(GENERATE_RECOMMENDATIONS, {
     onCompleted: () => {
       toast.success('Fresh recommendations generated!');
+      refetch();
+    },
+    onError: (err) => toast.error(extractGqlError(err)),
+  });
+
+  const [updatePreferences, { loading: savingPrefs }] = useMutation(UPDATE_PREFERENCES, {
+    onCompleted: () => {
+      toast.success('Preferences saved successfully!');
+      setShowPrefs(false);
       refetch();
     },
     onError: (err) => toast.error(extractGqlError(err)),
@@ -63,16 +100,152 @@ export default function RecommendationsPage() {
             Personalized book suggestions powered by AI
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          leftIcon={<ArrowPathIcon className="h-4 w-4" />}
-          onClick={() => generate()}
-          isLoading={generating}
-        >
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<AdjustmentsHorizontalIcon className="h-4 w-4" />}
+            onClick={() => setShowPrefs((v) => !v)}
+          >
+            Preferences
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+            onClick={() => generate()}
+            isLoading={generating}
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* ─── Preferences Panel ─── */}
+      {showPrefs && (
+        <Card className="border-primary-200 dark:border-primary-800 bg-primary-50/30 dark:bg-primary-900/10">
+          <div className="space-y-5">
+            <h3 className="text-sm font-bold text-nova-text flex items-center gap-2">
+              <AdjustmentsHorizontalIcon className="h-4 w-4 text-primary-500" />
+              Reading Preferences
+            </h3>
+
+            {/* Preferred Categories */}
+            <div>
+              <label className="block text-xs font-semibold text-nova-text-muted uppercase tracking-wider mb-2">
+                Preferred Categories
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {categories.length > 0 ? categories.map((cat: any) => {
+                  const isSelected = selectedCategories.includes(cat.name);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCategories((prev) =>
+                          isSelected ? prev.filter((c) => c !== cat.name) : [...prev, cat.name],
+                        )
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                        isSelected
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'bg-nova-surface border border-nova-border text-nova-text-muted hover:border-primary-400 hover:text-primary-600'
+                      }`}
+                    >
+                      {cat.icon && <span>{cat.icon}</span>}
+                      {cat.name}
+                      {isSelected && <CheckIcon className="h-3 w-3" />}
+                    </button>
+                  );
+                }) : (
+                  ['Fiction', 'Non-Fiction', 'Science', 'Technology', 'Databases', 'Mathematics',
+                   'History', 'Philosophy', 'Literature', 'Computer Science', 'Engineering', 'Arts',
+                  ].map((name) => {
+                    const isSelected = selectedCategories.includes(name);
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() =>
+                          setSelectedCategories((prev) =>
+                            isSelected ? prev.filter((c) => c !== name) : [...prev, name],
+                          )
+                        }
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                          isSelected
+                            ? 'bg-primary-600 text-white shadow-sm'
+                            : 'bg-nova-surface border border-nova-border text-nova-text-muted hover:border-primary-400 hover:text-primary-600'
+                        }`}
+                      >
+                        {name}
+                        {isSelected && <CheckIcon className="h-3 w-3" />}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Preferred Languages */}
+            <div>
+              <label className="block text-xs font-semibold text-nova-text-muted uppercase tracking-wider mb-2">
+                Preferred Languages
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGES.map((lang) => {
+                  const isSelected = selectedLanguages.includes(lang);
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() =>
+                        setSelectedLanguages((prev) =>
+                          isSelected ? prev.filter((l) => l !== lang) : [...prev, lang],
+                        )
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                        isSelected
+                          ? 'bg-accent-600 text-white shadow-sm'
+                          : 'bg-nova-surface border border-nova-border text-nova-text-muted hover:border-accent-400 hover:text-accent-600'
+                      }`}
+                    >
+                      {lang}
+                      {isSelected && <CheckIcon className="h-3 w-3" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Current selections summary + save */}
+            <div className="flex items-center justify-between pt-2 border-t border-nova-border">
+              <p className="text-xs text-nova-text-muted">
+                {selectedCategories.length} categories · {selectedLanguages.length} languages selected
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setShowPrefs(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  isLoading={savingPrefs}
+                  onClick={() =>
+                    updatePreferences({
+                      variables: {
+                        preferredCategories: selectedCategories,
+                        preferredLanguages: selectedLanguages,
+                      },
+                    })
+                  }
+                >
+                  Save Preferences
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {loading ? (
         <LoadingOverlay message="Loading recommendations…" />

@@ -26,6 +26,12 @@ class IdentityQuery(graphene.ObjectType):
     # ---- Self ----
     me = graphene.Field(UserType, description='Currently authenticated user.')
 
+    # ---- Email availability (public) ----
+    check_email_availability = graphene.Boolean(
+        email=graphene.String(required=True),
+        description='Check if an email address is available for registration. Returns true if available.',
+    )
+
     # ---- Admin: single user ----
     user = graphene.Field(
         UserType,
@@ -97,6 +103,12 @@ class IdentityQuery(graphene.ObjectType):
     # ------------------------------------------------------------------
     # Resolvers
     # ------------------------------------------------------------------
+
+    def resolve_check_email_availability(self, info, email):
+        """Public resolver — no authentication required."""
+        if not email or not email.strip():
+            return False
+        return not User.objects.filter(email=email.strip().lower()).exists()
 
     @require_authentication
     def resolve_me(self, info):

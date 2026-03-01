@@ -12,7 +12,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation } from '@apollo/client';
+import { useMutation, useLazyQuery } from '@apollo/client';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,11 +34,14 @@ import {
   SparklesIcon,
   DocumentTextIcon,
   CameraIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { REGISTER_WITH_NIC, VERIFY_NIC } from '@/graphql/mutations/auth';
+import { CHECK_EMAIL_AVAILABILITY } from '@/graphql/queries/auth';
 import { extractGqlError } from '@/lib/utils';
 
 /* ---------- Schemas ---------- */
@@ -441,11 +444,39 @@ export default function RegisterPage() {
   const [registerMut, { loading: registering }] =
     useMutation(REGISTER_WITH_NIC);
 
+  /* Email availability check */
+  const [checkEmailQuery] = useLazyQuery(CHECK_EMAIL_AVAILABILITY);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+
+  /* Password visibility toggles */
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   /* --- Step navigation --- */
 
   async function goToStep2() {
     const valid = await triggerStep1();
-    if (valid) setStep(1);
+    if (!valid) return;
+
+    // Check email availability before proceeding
+    const email = getPersonalValues().email;
+    setIsCheckingEmail(true);
+    setEmailError(null);
+    try {
+      const { data } = await checkEmailQuery({ variables: { email } });
+      if (data?.checkEmailAvailability === false) {
+        setEmailError('An account with this email already exists.');
+        toast.error('An account with this email already exists. Please use a different email or sign in.');
+        setIsCheckingEmail(false);
+        return;
+      }
+    } catch (err) {
+      // If the check fails, allow proceeding (backend will catch it at registration)
+      console.warn('Email availability check failed:', err);
+    }
+    setIsCheckingEmail(false);
+    setStep(1);
   }
 
   function goToStep3() {
@@ -623,8 +654,12 @@ export default function RegisterPage() {
             placeholder="you@example.com"
             autoComplete="email"
             leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-            error={step1Errors.email?.message}
-            {...regField('email')}
+            error={step1Errors.email?.message || emailError || undefined}
+            {...regField('email', {
+              onChange: () => {
+                if (emailError) setEmailError(null);
+              },
+            })}
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -647,10 +682,25 @@ export default function RegisterPage() {
 
           <Input
             label="Password"
-            type="password"
-            placeholder="••••••••"
+            type={showPassword ? 'text' : 'password'}
+            placeholder={showPassword ? 'Enter your password' : '••••••••'}
             autoComplete="new-password"
             leftIcon={<LockClosedIcon className="h-5 w-5" />}
+            rightIcon={
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="rounded-md p-0.5 text-nova-text-muted transition-colors hover:text-nova-text focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            }
             error={step1Errors.password?.message}
             helperText="Min 8 chars, uppercase, number, and special character"
             {...regField('password')}
@@ -658,17 +708,41 @@ export default function RegisterPage() {
 
           <Input
             label="Confirm password"
-            type="password"
-            placeholder="••••••••"
+            type={showConfirmPassword ? 'text' : 'password'}
+            placeholder={showConfirmPassword ? 'Confirm your password' : '••••••••'}
             autoComplete="new-password"
             leftIcon={<LockClosedIcon className="h-5 w-5" />}
+            rightIcon={
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="rounded-md p-0.5 text-nova-text-muted transition-colors hover:text-nova-text focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                tabIndex={-1}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            }
             error={step1Errors.confirmPassword?.message}
             {...regField('confirmPassword')}
           />
 
-          <Button type="submit" fullWidth className="mt-2">
-            Continue to NIC Verification
-            <ArrowRightIcon className="ml-2 h-4 w-4" />
+          <Button type="submit" fullWidth className="mt-2" disabled={isCheckingEmail}>
+            {isCheckingEmail ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Checking availability...
+              </>
+            ) : (
+              <>
+                Continue to NIC Verification
+                <ArrowRightIcon className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
 
           <p className="mt-4 text-center text-sm text-nova-text-secondary">

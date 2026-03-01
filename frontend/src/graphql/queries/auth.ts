@@ -21,3 +21,9 @@ export const ME = gql`
     }
   }
 `;
+
+export const CHECK_EMAIL_AVAILABILITY = gql`
+  query CheckEmailAvailability($email: String!) {
+    checkEmailAvailability(email: $email)
+  }
+`;

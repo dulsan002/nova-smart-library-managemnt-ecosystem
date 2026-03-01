@@ -103,6 +103,7 @@ export default function AdminBooksPage() {
 
   const [search, setSearch] = useState('');
   const [after, setAfter] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
   const [langFilter, setLangFilter] = useState('');
   const debouncedSearch = useDebounce(search, 400);
 
@@ -439,10 +440,10 @@ export default function AdminBooksPage() {
 
       <div className="flex flex-wrap gap-3">
         <div className="w-64">
-          <Input placeholder="Search books…" value={search} onChange={(e) => { setSearch(e.target.value); setAfter(null); }} leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />} />
+          <Input placeholder="Search books…" value={search} onChange={(e) => { setSearch(e.target.value); setAfter(null); setCursorStack([]); }} leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />} />
         </div>
         <div className="w-40">
-          <Select value={langFilter} onChange={(v) => { setLangFilter(v); setAfter(null); }} options={langOptions} />
+          <Select value={langFilter} onChange={(v) => { setLangFilter(v); setAfter(null); setCursorStack([]); }} options={langOptions} />
         </div>
       </div>
 
@@ -525,7 +526,23 @@ export default function AdminBooksPage() {
         </Card>
       )}
 
-      {pageInfo && <Pagination pageInfo={pageInfo} totalCount={totalCount} currentCount={edges.length} onNext={() => setAfter(pageInfo.endCursor)} />}
+      {pageInfo && (
+        <Pagination
+          pageInfo={{ ...pageInfo, hasPreviousPage: cursorStack.length > 0 }}
+          totalCount={totalCount}
+          currentCount={edges.length}
+          onNext={() => {
+            setCursorStack((prev) => [...prev, after ?? '']);
+            setAfter(pageInfo.endCursor);
+          }}
+          onPrev={() => {
+            const stack = [...cursorStack];
+            const prev = stack.pop() ?? '';
+            setCursorStack(stack);
+            setAfter(prev === '' ? null : prev);
+          }}
+        />
+      )}
 
       {/* 360° VIEW MODAL */}
       <Modal open={!!viewBookId} onClose={() => setViewBookId(null)} title="" size="full">

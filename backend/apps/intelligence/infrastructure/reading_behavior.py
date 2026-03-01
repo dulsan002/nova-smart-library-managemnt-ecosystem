@@ -38,6 +38,19 @@ class ReadingSpeedProfile:
     confidence: float         # 0.0–1.0 based on sample size
     estimated_finish_times: Dict[str, float] = field(default_factory=dict)
 
+    # Aliases expected by the GraphQL schema resolver
+    @property
+    def words_per_minute(self) -> float:
+        return self.avg_wpm
+
+    @property
+    def category(self) -> str:
+        return self.speed_category
+
+    @property
+    def sessions_analyzed(self) -> int:
+        return self.total_sessions_analysed
+
 
 class ReadingSpeedAnalyzer:
     """
@@ -63,33 +76,25 @@ class ReadingSpeedAnalyzer:
         from apps.digital_content.domain.models import ReadingSession
 
         sessions = ReadingSession.objects.filter(
-            user_id=user_id,
+            user_id=user_id if not hasattr(user_id, 'id') else user_id.id,
             session_type='READING',
             status__in=['COMPLETED', 'PAUSED'],
-            total_duration__gt=120,  # At least 2 minutes
+            duration_seconds__gt=120,  # At least 2 minutes
         ).values(
-            'total_duration', 'pages_read',
-            'progress_end', 'progress_start',
+            'duration_seconds', 'progress_percent',
         )
 
         wpm_samples = []
         for sess in sessions:
-            pages = sess.get('pages_read') or 0
-            duration_seconds = sess.get('total_duration') or 0
+            dur = sess.get('duration_seconds') or 0
+            progress = float(sess.get('progress_percent') or 0)
 
-            if pages <= 0 or duration_seconds < 120:
-                # Try progress-based estimation
-                progress_delta = (
-                    (sess.get('progress_end') or 0)
-                    - (sess.get('progress_start') or 0)
-                )
-                if progress_delta > 0 and duration_seconds >= 120:
-                    # Estimate pages from progress percentage (assume 300 pages)
-                    pages = progress_delta / 100.0 * 300
+            # Estimate pages from progress percentage (assume 300-page book)
+            pages = progress / 100.0 * 300 if progress > 0 else 0
 
-            if pages > 0 and duration_seconds >= 120:
+            if pages > 0 and dur >= 120:
                 words = pages * cls.AVG_WORDS_PER_PAGE
-                minutes = duration_seconds / 60.0
+                minutes = dur / 60.0
                 wpm = words / minutes
                 if 50 < wpm < 1000:  # Sanity bounds
                     wpm_samples.append(wpm)
@@ -137,6 +142,11 @@ class ReadingSpeedAnalyzer:
             estimated_finish_times=finish_estimates,
         )
 
+    @classmethod
+    def analyze(cls, user_id) -> ReadingSpeedProfile:
+        """Alias for analyse() — used by GraphQL resolver."""
+        return cls.analyse(user_id)
+
     @staticmethod
     def _persist_speed(user_id, category: str):
         from apps.intelligence.domain.models import UserPreference
@@ -165,6 +175,11 @@ class SessionPattern:
     hourly_distribution: Dict[int, int]    # hour → session count
     daily_distribution: Dict[int, int]     # weekday → session count
 
+    # Alias expected by the GraphQL schema resolver
+    @property
+    def preferred_time(self) -> str:
+        return self.preferred_time_label
+
 
 class SessionPatternAnalyzer:
     """
@@ -183,11 +198,12 @@ class SessionPatternAnalyzer:
     def analyse(cls, user_id) -> SessionPattern:
         from apps.digital_content.domain.models import ReadingSession
 
+        uid = user_id if not hasattr(user_id, 'id') else user_id.id
         sessions = list(
             ReadingSession.objects.filter(
-                user_id=user_id,
-                total_duration__gt=60,
-            ).values('started_at', 'total_duration')
+                user_id=uid,
+                duration_seconds__gt=60,
+            ).values('started_at', 'duration_seconds')
         )
 
         if not sessions:
@@ -211,7 +227,7 @@ class SessionPatternAnalyzer:
             started = s['started_at']
             hours[started.hour] += 1
             days[started.weekday()] += 1
-            durations.append(s['total_duration'] / 60.0)
+            durations.append(s['duration_seconds'] / 60.0)
 
         peak_hour = hours.most_common(1)[0][0]
         peak_day = days.most_common(1)[0][0]
@@ -249,6 +265,11 @@ class SessionPatternAnalyzer:
             daily_distribution=dict(days),
         )
 
+    @classmethod
+    def analyze(cls, user_id) -> SessionPattern:
+        """Alias for analyse() — used by GraphQL resolver."""
+        return cls.analyse(user_id)
+
 
 # ====================================================================
 # 3. Engagement Heatmap Generator
@@ -261,6 +282,22 @@ class EngagementHeatmap:
     total_minutes: float
     most_active_slot: Tuple[int, int]  # (day, hour)
 
+    DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+    # Aliases expected by the GraphQL schema resolver
+    @property
+    def heatmap(self) -> List[List[int]]:
+        return self.grid
+
+    @property
+    def days(self) -> List[str]:
+        return self.DAY_NAMES
+
+    @property
+    def hours(self) -> List[int]:
+        # Aggregate session counts per hour (sum across all days)
+        return [sum(self.grid[d][h] for d in range(7)) for h in range(24)]
+
 
 class EngagementHeatmapGenerator:
     """
@@ -272,18 +309,19 @@ class EngagementHeatmapGenerator:
     def generate(cls, user_id, days: int = 90) -> EngagementHeatmap:
         from apps.digital_content.domain.models import ReadingSession
 
+        uid = user_id if not hasattr(user_id, 'id') else user_id.id
         cutoff = timezone.now() - timedelta(days=days)
         sessions = ReadingSession.objects.filter(
-            user_id=user_id,
+            user_id=uid,
             started_at__gte=cutoff,
-        ).values('started_at', 'total_duration')
+        ).values('started_at', 'duration_seconds')
 
         grid = [[0] * 24 for _ in range(7)]
         total_minutes = 0.0
 
         for s in sessions:
             started = s['started_at']
-            duration_mins = (s['total_duration'] or 0) / 60.0
+            duration_mins = (s['duration_seconds'] or 0) / 60.0
             day = started.weekday()
             hour = started.hour
             grid[day][hour] += int(duration_mins)
@@ -319,6 +357,15 @@ class CompletionPrediction:
     estimated_days_to_finish: Optional[float]
     factors: List[str] = field(default_factory=list)
 
+    # Aliases expected by the GraphQL schema resolver
+    @property
+    def completion_probability(self) -> float:
+        return self.predicted_completion_probability
+
+    @property
+    def estimated_days(self) -> Optional[float]:
+        return self.estimated_days_to_finish
+
 
 class CompletionPredictor:
     """
@@ -331,13 +378,15 @@ class CompletionPredictor:
     def predict(cls, user_id, asset_id) -> CompletionPrediction:
         from apps.digital_content.domain.models import UserLibrary, ReadingSession
 
+        uid = user_id if not hasattr(user_id, 'id') else user_id.id
+
         try:
             lib = UserLibrary.objects.get(
-                user_id=user_id, digital_asset_id=asset_id,
+                user_id=uid, digital_asset_id=asset_id,
             )
         except UserLibrary.DoesNotExist:
             return CompletionPrediction(
-                user_id=str(user_id),
+                user_id=str(uid),
                 asset_id=str(asset_id),
                 current_progress=0,
                 predicted_completion_probability=0,
@@ -353,9 +402,9 @@ class CompletionPredictor:
             factors.append(f'Already {progress:.0f}% complete')
 
         # Factor 2: Historical completion rate
-        total_assets = UserLibrary.objects.filter(user_id=user_id).count()
+        total_assets = UserLibrary.objects.filter(user_id=uid).count()
         completed_assets = UserLibrary.objects.filter(
-            user_id=user_id, is_finished=True,
+            user_id=uid, is_finished=True,
         ).count()
         completion_rate = completed_assets / max(total_assets, 1)
         if completion_rate > 0.6:
@@ -365,7 +414,7 @@ class CompletionPredictor:
 
         # Factor 3: Reading consistency
         recent_sessions = ReadingSession.objects.filter(
-            user_id=user_id,
+            user_id=uid,
             digital_asset_id=asset_id,
             started_at__gte=timezone.now() - timedelta(days=14),
         ).count()
@@ -378,7 +427,7 @@ class CompletionPredictor:
         # Factor 4: Time since last session
         last_session = (
             ReadingSession.objects
-            .filter(user_id=user_id, digital_asset_id=asset_id)
+            .filter(user_id=uid, digital_asset_id=asset_id)
             .order_by('-started_at')
             .first()
         )
@@ -404,7 +453,7 @@ class CompletionPredictor:
             # Calculate reading velocity (progress per day)
             first_session = (
                 ReadingSession.objects
-                .filter(user_id=user_id, digital_asset_id=asset_id)
+                .filter(user_id=uid, digital_asset_id=asset_id)
                 .order_by('started_at')
                 .first()
             )
@@ -418,7 +467,7 @@ class CompletionPredictor:
                     est_days = round(remaining / velocity, 1)
 
         return CompletionPrediction(
-            user_id=str(user_id),
+            user_id=str(uid),
             asset_id=str(asset_id),
             current_progress=progress,
             predicted_completion_probability=round(probability, 4),
@@ -446,8 +495,8 @@ class SessionRecommender:
             ReadingSession.objects.filter(
                 user_id=user_id,
                 status='COMPLETED',
-                total_duration__gt=300,  # At least 5 minutes
-            ).values('started_at', 'total_duration', 'pages_read')
+                duration_seconds__gt=300,  # At least 5 minutes
+            ).values('started_at', 'duration_seconds', 'progress_percent')
         )
 
         if len(sessions) < 5:
@@ -458,15 +507,15 @@ class SessionRecommender:
                 'reasoning': 'Not enough data yet. Start with 30-minute sessions.',
             }
 
-        # Find sessions with highest pages-per-minute (productivity)
+        # Find sessions with highest productivity (progress per minute)
         productivity = []
         for s in sessions:
-            pages = s.get('pages_read') or 0
-            mins = s['total_duration'] / 60.0
+            progress = float(s.get('progress_percent') or 0)
+            mins = s['duration_seconds'] / 60.0
             hour = s['started_at'].hour
-            if pages > 0 and mins > 5:
+            if progress > 0 and mins > 5:
                 productivity.append({
-                    'ppm': pages / mins,
+                    'ppm': progress / mins,
                     'duration': mins,
                     'hour': hour,
                 })

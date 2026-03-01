@@ -8,10 +8,13 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Breadcrumbs } from './Breadcrumbs';
 import { MobileSidebar } from './MobileSidebar';
+import { SearchOverlay } from './SearchOverlay';
 import { LoadingScreen } from '@/components/ui/Spinner';
 
 export function AppLayout() {
   return (
+    <>
+    <SearchOverlay />
     <div className="flex h-screen overflow-hidden bg-nova-bg">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex">
@@ -34,5 +37,6 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }

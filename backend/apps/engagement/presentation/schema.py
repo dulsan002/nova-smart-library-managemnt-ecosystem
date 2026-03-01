@@ -211,7 +211,7 @@ class AdminAwardKP(graphene.Mutation):
             # For admin adjustments, directly award the specified points
             # instead of looking up from KP_WEIGHTS
             engagement, created = UserEngagement.objects.get_or_create(user_id=user_id)
-            actual = engagement.award_kp(points, dimension)
+            actual = engagement.award_kp(points, dimension, bypass_cap=True)
 
             # Record in ledger
             from apps.governance.services import KPLedgerService

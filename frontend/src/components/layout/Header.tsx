@@ -33,7 +33,7 @@ export function Header() {
     fetchPolicy: 'network-only',
   });
 
-  const unreadCount = notifData?.notificationCount?.unread ?? 0;
+  const unreadCount = notifData?.notificationCount?.totalUnread ?? 0;
 
   const userMenuItems: DropdownItem[] = [
     {

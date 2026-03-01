@@ -6,6 +6,7 @@ All write operations for the identity bounded context.
 
 import graphene
 import logging
+from graphql import GraphQLError
 
 from apps.common.decorators import audit_action, require_authentication, require_roles
 from apps.common.permissions import Role
@@ -100,22 +101,28 @@ class RegisterUser(graphene.Mutation):
 
     @audit_action(action='REGISTER', resource_type='User')
     def mutate(self, info, input):
-        use_case = RegisterUserUseCase(
-            user_repo=_build_user_repo(),
-            token_service=_build_token_service(),
-        )
-        dto = RegisterUserDTO(
-            email=input.email,
-            password=input.password,
-            first_name=input.first_name,
-            last_name=input.last_name,
-            phone_number=input.phone_number,
-            date_of_birth=input.date_of_birth,
-            institution_id=input.institution_id,
-        )
-        profile = use_case.execute(dto)
-        from apps.identity.domain.models import User
-        return User.objects.get(pk=profile.id)
+        from apps.common.exceptions import ConflictError, ValidationError as NovaValidationError
+        try:
+            use_case = RegisterUserUseCase(
+                user_repo=_build_user_repo(),
+                token_service=_build_token_service(),
+            )
+            dto = RegisterUserDTO(
+                email=input.email,
+                password=input.password,
+                first_name=input.first_name,
+                last_name=input.last_name,
+                phone_number=input.phone_number,
+                date_of_birth=input.date_of_birth,
+                institution_id=input.institution_id,
+            )
+            profile = use_case.execute(dto)
+            from apps.identity.domain.models import User
+            return User.objects.get(pk=profile.id)
+        except ConflictError as e:
+            raise GraphQLError(e.message)
+        except NovaValidationError as e:
+            raise GraphQLError(e.message)
 
 
 class LoginUser(graphene.Mutation):
@@ -237,13 +244,22 @@ class ChangePassword(graphene.Mutation):
     @require_authentication
     @audit_action(action='CHANGE_PASSWORD', resource_type='User')
     def mutate(self, info, input):
+        from apps.common.exceptions import (
+            AuthenticationError as NovaAuthError,
+            ValidationError as NovaValidationError,
+        )
         user = info.context.user
         use_case = ChangePasswordUseCase(user_repo=_build_user_repo())
         dto = ChangePasswordDTO(
             old_password=input.old_password,
             new_password=input.new_password,
         )
-        use_case.execute(user.id, dto)
+        try:
+            use_case.execute(user.id, dto)
+        except NovaAuthError as e:
+            raise GraphQLError(e.message)
+        except NovaValidationError as e:
+            raise GraphQLError(e.message)
         return ChangePassword(success=True)
 
 
@@ -494,22 +510,28 @@ class RegisterWithNIC(graphene.Mutation):
         from difflib import SequenceMatcher
         from apps.intelligence.infrastructure.ocr_service import OCRService
         from apps.identity.domain.models import User, VerificationRequest
+        from apps.common.exceptions import ConflictError, ValidationError as NovaValidationError
 
         # 1. Register the user
-        use_case = RegisterUserUseCase(
-            user_repo=_build_user_repo(),
-            token_service=_build_token_service(),
-        )
-        dto = RegisterUserDTO(
-            email=input.email,
-            password=input.password,
-            first_name=input.first_name,
-            last_name=input.last_name,
-            phone_number=input.phone_number,
-            date_of_birth=input.date_of_birth,
-            institution_id=input.institution_id or input.nic_number,
-        )
-        profile = use_case.execute(dto)
+        try:
+            use_case = RegisterUserUseCase(
+                user_repo=_build_user_repo(),
+                token_service=_build_token_service(),
+            )
+            dto = RegisterUserDTO(
+                email=input.email,
+                password=input.password,
+                first_name=input.first_name,
+                last_name=input.last_name,
+                phone_number=input.phone_number,
+                date_of_birth=input.date_of_birth,
+                institution_id=input.institution_id or input.nic_number,
+            )
+            profile = use_case.execute(dto)
+        except ConflictError as e:
+            raise GraphQLError(e.message)
+        except NovaValidationError as e:
+            raise GraphQLError(e.message)
         user = User.objects.get(pk=profile.id)
 
         # 2. Run OCR on both sides of NIC
